@@ -40,7 +40,7 @@ Flutterwave v4 test mode uses `https://developersandbox-api.flutterwave.com`. Pr
 PayOps runs inside Hermes Agent; it is not a standalone dashboard or hosted payment service. Install it from this repository using a Hermes build that includes the OAuth client-credentials feature:
 
 ```bash
-hermes plugins install BigWave45/payops-hermes- --ref 215ea85cbea2918c37a895061dac8c502a0c04a7
+hermes plugins install BigWave45/payops-hermes- --ref 660e60805580e6e4ee8bc7ec02b929576a48e962
 hermes plugins enable payops
 ```
 
@@ -110,6 +110,19 @@ For an automated sandbox test, add GitHub Actions repository secrets named `FLUT
 - Paystack API requests retain the existing host allowlist, disabled redirects, 5 MB response cap, and 20-second timeout.
 - Provider error messages are bounded; response bodies and request headers are not included in raised errors.
 - PayOps does not execute shell commands, spawn subprocesses, run background jobs, or send telemetry.
+
+## Roadmap
+
+The current release is deliberately a read-only foundation. The longer-term product direction is to become a payment-operations and financial-oversight layer for businesses and AI agents that initiate or manage commercial activity.
+
+Potential next stages, subject to validation and demand:
+
+1. **Continuous operations:** scheduled reconciliation, recurring reports, and alerts when new discrepancies or unusual payment patterns appear.
+2. **Broader financial visibility:** additional payment providers, currencies, reporting periods, and exports for finance teams.
+3. **Business-system reconciliation:** compare provider records with merchant orders, invoices, internal ledgers, and bank statements. This requires explicit connectors and matching rules; it is not part of the current plugin.
+4. **Agent financial governance:** auditable visibility into agent-related spending and receipts, policy-aware review, and eventually controlled payment workflows with explicit authorization and safeguards.
+
+The last stage is an ambition, not a current capability. PayOps currently performs read-only provider retrieval and deterministic comparison of provider transaction and settlement records. It does not yet monitor continuously, connect to merchant ledgers, detect fraud, or authorize or execute payments.
 
 ## Hermes contribution
 
