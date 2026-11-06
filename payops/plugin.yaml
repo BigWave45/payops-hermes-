@@ -10,11 +10,7 @@ requires_env:
     description: Paystack API secret key. Use a test key during development.
     url: https://dashboard.paystack.com/#/settings/developer
     secret: true
-  - name: FLUTTERWAVE_CLIENT_ID
-    description: Flutterwave v4 sandbox OAuth client ID.
-    url: https://developers.flutterwave.com/
-    secret: true
-  - name: FLUTTERWAVE_CLIENT_SECRET
-    description: Flutterwave v4 sandbox OAuth client secret.
-    url: https://developers.flutterwave.com/
+  - name: FLUTTERWAVE_SECRET_KEY
+    description: Flutterwave v3 secret API key. Use a test key during development.
+    url: https://developer.flutterwave.com/docs/authentication
     secret: true
