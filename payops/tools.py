@@ -5,10 +5,12 @@ from datetime import date
 from .providers import Paystack, Flutterwave
 from .reconcile import build_report
 
+
 def _get_secret(name):
     # Lazy import keeps pure logic importable outside a Hermes installation.
     from agent.secret_scope import get_secret
     return get_secret(name)
+
 
 def _validate(args):
     if not isinstance(args, dict):
@@ -30,28 +32,40 @@ def _validate(args):
         raise ValueError("max_pages must be an integer between 1 and 20")
     return start.isoformat(), end.isoformat(), providers, pages
 
+
 def _collect(args):
     start, end, providers, pages = _validate(args)
     transactions, settlements, errors, warnings = [], [], [], []
     for name in providers:
         try:
-            key_name = "PAYSTACK_SECRET_KEY" if name == "paystack" else "FLUTTERWAVE_SECRET_KEY"
-            token = _get_secret(key_name)
-            if not token:
-                errors.append({"provider": name, "error": "API key is not configured in Hermes secret storage"})
-                continue
-            adapter = Paystack(token) if name == "paystack" else Flutterwave(token)
+            if name == "paystack":
+                token = _get_secret("PAYSTACK_SECRET_KEY")
+                if not token:
+                    errors.append({"provider": name, "error": "API key is not configured in Hermes secret storage"})
+                    continue
+                adapter = Paystack(token)
+            else:
+                client_id = _get_secret("FLUTTERWAVE_CLIENT_ID")
+                client_secret = _get_secret("FLUTTERWAVE_CLIENT_SECRET")
+                if not client_id or not client_secret:
+                    errors.append({"provider": name, "error": "OAuth client credentials are not configured in Hermes secret storage"})
+                    continue
+                adapter = Flutterwave(client_id, client_secret)
             transactions.extend(adapter.transactions(start, end, pages))
             warning_count = len(getattr(adapter, "warnings", []))
             warnings.extend(f"{name}: {warning}" for warning in adapter.warnings)
             settlements.extend(adapter.settlements(start, end, pages))
             warnings.extend(f"{name}: {warning}" for warning in adapter.warnings[warning_count:])
+            if name == "flutterwave":
+                warnings.append(
+                    "flutterwave: sandbox transactions are test data; settlement records are only available for eligible live/production transactions"
+                )
         except ImportError:
             errors.append({"provider": name, "error": "Hermes secret storage is unavailable in this runtime"})
         except Exception as exc:
-            # Provider adapters expose sanitized errors; never serialize raw HTTP responses or credentials.
             errors.append({"provider": name, "error": str(exc)[:300]})
     return transactions, settlements, errors, warnings
+
 
 def list_transactions(args: dict, **kwargs) -> str:
     try:
@@ -64,6 +78,7 @@ def list_transactions(args: dict, **kwargs) -> str:
         }, ensure_ascii=False)
     except Exception as exc:
         return json.dumps({"error": str(exc)[:300]}, ensure_ascii=False)
+
 
 def reconcile(args: dict, **kwargs) -> str:
     try:
