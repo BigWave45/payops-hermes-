@@ -45,21 +45,16 @@ def _collect(args):
                     continue
                 adapter = Paystack(token)
             else:
-                client_id = _get_secret("FLUTTERWAVE_CLIENT_ID")
-                client_secret = _get_secret("FLUTTERWAVE_CLIENT_SECRET")
-                if not client_id or not client_secret:
-                    errors.append({"provider": name, "error": "OAuth client credentials are not configured in Hermes secret storage"})
+                secret_key = _get_secret("FLUTTERWAVE_SECRET_KEY")
+                if not secret_key:
+                    errors.append({"provider": name, "error": "Secret key is not configured in Hermes secret storage"})
                     continue
-                adapter = Flutterwave(client_id, client_secret)
+                adapter = Flutterwave(secret_key)
             transactions.extend(adapter.transactions(start, end, pages))
             warning_count = len(getattr(adapter, "warnings", []))
             warnings.extend(f"{name}: {warning}" for warning in adapter.warnings)
             settlements.extend(adapter.settlements(start, end, pages))
             warnings.extend(f"{name}: {warning}" for warning in adapter.warnings[warning_count:])
-            if name == "flutterwave":
-                warnings.append(
-                    "flutterwave: sandbox transactions are test data; settlement records are only available for eligible live/production transactions"
-                )
         except ImportError:
             errors.append({"provider": name, "error": "Hermes secret storage is unavailable in this runtime"})
         except Exception as exc:
