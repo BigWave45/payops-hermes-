@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/flutterwave-v4-hermes-oauth']
   pull_request:
     branches: [main]
 
