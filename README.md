@@ -1,6 +1,6 @@
 # PayOps for Hermes
 
-A native, read-only Hermes Agent plugin for inspecting Paystack and Flutterwave transactions and producing deterministic reconciliation reports.
+A native, read-only Hermes Agent plugin located in the `payops/` plugin directory for inspecting Paystack and Flutterwave transactions and producing deterministic reconciliation reports.
 
 ## Scope
 
@@ -57,8 +57,8 @@ python -m pytest -q
 Validate with the Hermes CLI:
 
 ```bash
-hermes plugins doctor . --ci
-hermes plugins validate . --install-deps
+hermes plugins doctor payops/ --ci
+hermes plugins validate payops/ --install-deps
 ```
 
 ## Security boundaries
