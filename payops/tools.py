@@ -32,7 +32,7 @@ def _validate(args):
 
 def _collect(args):
     start, end, providers, pages = _validate(args)
-    transactions, settlements, errors = [], [], []
+    transactions, settlements, errors, warnings = [], [], [], []
     for name in providers:
         try:
             key_name = "PAYSTACK_SECRET_KEY" if name == "paystack" else "FLUTTERWAVE_SECRET_KEY"
@@ -43,29 +43,32 @@ def _collect(args):
             adapter = Paystack(token) if name == "paystack" else Flutterwave(token)
             transactions.extend(adapter.transactions(start, end, pages))
             settlements.extend(adapter.settlements(start, end, pages))
+            warnings.extend(getattr(adapter, "warnings", []))
         except ImportError:
             errors.append({"provider": name, "error": "Hermes secret storage is unavailable in this runtime"})
         except Exception as exc:
             # Provider adapters expose sanitized errors; never serialize raw HTTP responses or credentials.
             errors.append({"provider": name, "error": str(exc)[:300]})
-    return transactions, settlements, errors
+    return transactions, settlements, errors, warnings
 
 def list_transactions(args: dict, **kwargs) -> str:
     try:
-        transactions, _, errors = _collect(args)
+        transactions, _, errors, warnings = _collect(args)
         return json.dumps({
             "transactions": [item.to_dict() for item in transactions],
             "count": len(transactions),
             "provider_errors": errors,
+            "provider_warnings": warnings,
         }, ensure_ascii=False)
     except Exception as exc:
         return json.dumps({"error": str(exc)[:300]}, ensure_ascii=False)
 
 def reconcile(args: dict, **kwargs) -> str:
     try:
-        transactions, settlements, errors = _collect(args)
+        transactions, settlements, errors, warnings = _collect(args)
         report = build_report(transactions, settlements)
         report["provider_errors"] = errors
+        report["provider_warnings"] = warnings
         report["transaction_count"] = len(transactions)
         report["settlement_count"] = len(settlements)
         return json.dumps(report, ensure_ascii=False)
