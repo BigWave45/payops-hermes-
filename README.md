@@ -22,9 +22,10 @@ The plugin does not initiate charges, transfers, refunds, reversals, payouts, or
 Configure these secrets in Hermes secret storage:
 
 - `PAYSTACK_SECRET_KEY`
-- `FLUTTERWAVE_SECRET_KEY`
+- `FLUTTERWAVE_CLIENT_ID`
+- `FLUTTERWAVE_CLIENT_SECRET`
 
-Credentials are read through Hermes `agent.secret_scope.get_secret`. The plugin does not read a project `.env` file or print credentials.
+Credentials are read through Hermes `agent.secret_scope.get_secret`. Flutterwave v4 uses OAuth 2.0 client-credentials authentication; PayOps requests a short-lived access token at runtime. The plugin does not read a project `.env` file or print credentials.
 
 ## Tools
 
@@ -35,15 +36,16 @@ Both tools accept:
 - `providers`: optional list containing `paystack`, `flutterwave`, or both. Defaults to both.
 - `max_pages`: optional page cap from 1 to 20; defaults to 5.
 
-Provider API calls are HTTPS GET requests only. Responses are capped at 5 MB and requests time out after 20 seconds.
+Provider API calls are HTTPS GET requests only, except for the Flutterwave OAuth token exchange. Provider data calls are read-only. Responses are capped at 5 MB and requests time out after 20 seconds.
 
 ## Reconciliation semantics and limitations
 
 - Paystack transaction amounts are already expressed in minor units.
-- Flutterwave transaction and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
+- Flutterwave v4 charge amounts and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
 - Duplicate references are detected within a provider only.
 - Transaction totals and settlement totals are reported separately. They are not treated as directly equivalent because settlement timing can lag.
-- Flutterwave v3 transaction listing uses successful and failed status filters; pending or in-progress transactions may not be returned.
+- Flutterwave v4 collected payments are retrieved from the read-only charges collection. The adapter requests succeeded, pending, failed, and voided statuses separately.
+- Flutterwave v4 sandbox transactions are test data. Settlement records are only available for eligible live/production transactions, so an empty sandbox settlement result is expected.
 - Both adapters follow provider pagination metadata. The `max_pages` limit is a deliberate safety bound; if more pages exist, the tool returns an explicit `provider_warnings` entry instead of silently presenting the result as complete.
 - This report is not a substitute for bank-statement reconciliation or a merchant order ledger.
 
@@ -51,7 +53,13 @@ Provider API calls are HTTPS GET requests only. Responses are capped at 5 MB and
 
 Provider adapter tests use mocked API responses; they verify normalization and pagination behavior but do not replace live test-key verification.
 
-For live, read-only provider verification, add test-mode credentials as GitHub Actions repository secrets named `PAYSTACK_TEST_SECRET_KEY` and `FLUTTERWAVE_TEST_SECRET_KEY`. Then run **Actions → Live provider smoke test → Run workflow** and select the provider(s) to check. The workflow reads a 14-day window, caps each endpoint at two pages, and prints only record counts and pagination warnings. It does not print transaction details or credentials. Do not add production keys.
+For live, read-only provider verification, add these GitHub Actions repository secrets:
+
+- `PAYSTACK_TEST_SECRET_KEY`
+- `FLUTTERWAVE_CLIENT_ID`
+- `FLUTTERWAVE_CLIENT_SECRET`
+
+Then run **Actions → Live provider smoke test → Run workflow** and select the provider(s) to check. The workflow reads a 14-day window, caps each endpoint at two pages, and prints only record counts and pagination warnings. It does not print transaction details or credentials. Do not add production credentials.
 
 Run tests with:
 
@@ -70,7 +78,7 @@ hermes plugins validate payops/ --install-deps
 
 ## Security boundaries
 
-- Read-only provider endpoints.
+- Read-only provider data endpoints; no payment or transfer mutation calls.
 - HTTPS and explicit provider-host allowlist.
 - No shell execution, subprocesses, arbitrary URLs, or user-controlled request hosts.
 - Secrets are obtained from Hermes secret storage.
