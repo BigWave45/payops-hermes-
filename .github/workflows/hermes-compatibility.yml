@@ -3,8 +3,18 @@ name: Hermes compatibility
 on:
   push:
     branches: [main]
+    paths:
+      - "payops/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/hermes-compatibility.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "payops/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/hermes-compatibility.yml"
 
 permissions:
   contents: read
