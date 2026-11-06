@@ -1,4 +1,4 @@
-from money import to_minor, from_minor, currency_decimals
+from payops.money import to_minor, from_minor, currency_decimals
 
 def test_major_to_minor_rounding():
     assert to_minor("123.45") == 12345
