@@ -2,6 +2,11 @@ name: Flutterwave v4 OAuth sandbox smoke test
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/flutterwave-v4-hermes-oauth
+    paths:
+      - .github/workflows/flutterwave-v4-smoke.yml
 
 permissions:
   contents: read
