@@ -1,5 +1,5 @@
-from models import Transaction, Settlement
-from reconcile import build_report
+from payops.models import Transaction, Settlement
+from payops.reconcile import build_report
 
 def test_duplicate_reference_scoped_to_provider():
     txs = [
