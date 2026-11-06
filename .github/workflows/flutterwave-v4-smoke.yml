@@ -8,6 +8,9 @@ on:
     paths:
       - .github/workflows/flutterwave-v4-smoke.yml
       - payops/providers/flutterwave.py
+      - payops/tools.py
+      - payops/reconcile.py
+      - payops/models.py
 
 permissions:
   contents: read
@@ -67,21 +70,27 @@ jobs:
           HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
         run: |
           PYTHONPATH="$HERMES_HOME/plugins" uv run python - <<'PY'
+          import json
           from datetime import datetime, timedelta, timezone
-          from payops.providers import Flutterwave
+          from payops.tools import list_transactions
 
           end = datetime.now(timezone.utc)
           start = end - timedelta(days=14)
-          adapter = Flutterwave()
-          rows = adapter.transactions(
-              start.strftime("%Y-%m-%d"),
-              end.strftime("%Y-%m-%d"),
-              max_pages=2,
-          )
+          result = json.loads(list_transactions({
+              "from_date": start.strftime("%Y-%m-%d"),
+              "to_date": end.strftime("%Y-%m-%d"),
+              "providers": ["flutterwave"],
+              "max_pages": 2,
+          }))
+          if result.get("provider_errors"):
+              raise SystemExit("Flutterwave plugin tool returned provider errors")
+          if "transactions" not in result or "count" not in result:
+              raise SystemExit("Flutterwave plugin tool returned an invalid response")
           print(
-              "Flutterwave v4 sandbox OAuth and charge listing succeeded; "
-              f"charges={len(rows)}; pagination_warnings={len(adapter.warnings)}"
+              "Flutterwave v4 sandbox OAuth and PayOps transaction tool succeeded; "
+              f"charges={result['count']}; "
+              f"pagination_warnings={len(result.get('provider_warnings', []))}"
           )
-          for warning in adapter.warnings:
+          for warning in result.get("provider_warnings", []):
               print("pagination warning: " + warning)
           PY
