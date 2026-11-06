@@ -22,10 +22,10 @@ The plugin does not initiate charges, transfers, refunds, reversals, payouts, or
 Configure these secrets in Hermes secret storage:
 
 - `PAYSTACK_SECRET_KEY`
-- `FLUTTERWAVE_CLIENT_ID`
-- `FLUTTERWAVE_CLIENT_SECRET`
+- `FLUTTERWAVE_SECRET_KEY`
+- `FLUTTERWAVE_SECRET_KEY`
 
-Credentials are read through Hermes `agent.secret_scope.get_secret`. Flutterwave v4 uses OAuth 2.0 client-credentials authentication; PayOps requests a short-lived access token at runtime. The plugin does not read a project `.env` file or print credentials.
+Credentials are read through Hermes `agent.secret_scope.get_secret`. Flutterwave v3 uses a static secret API key read from Hermes secret storage. PayOps does not perform OAuth token acquisition or refresh. The plugin does not read a project `.env` file or print credentials.
 
 ## Tools
 
@@ -36,16 +36,16 @@ Both tools accept:
 - `providers`: optional list containing `paystack`, `flutterwave`, or both. Defaults to both.
 - `max_pages`: optional page cap from 1 to 20; defaults to 5.
 
-Provider API calls are HTTPS GET requests only, except for the Flutterwave OAuth token exchange. Provider data calls are read-only. Responses are capped at 5 MB and requests time out after 20 seconds.
+Provider API calls are HTTPS GET requests only,  Provider data calls are read-only. Responses are capped at 5 MB and requests time out after 20 seconds.
 
 ## Reconciliation semantics and limitations
 
 - Paystack transaction amounts are already expressed in minor units.
-- Flutterwave v4 charge amounts and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
+- Flutterwave v3 charge amounts and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
 - Duplicate references are detected within a provider only.
 - Transaction totals and settlement totals are reported separately. They are not treated as directly equivalent because settlement timing can lag.
-- Flutterwave v4 collected payments are retrieved from the read-only charges collection. The adapter requests succeeded, pending, failed, and voided statuses separately.
-- Flutterwave v4 sandbox transactions are test data. Settlement records are only available for eligible live/production transactions, so an empty sandbox settlement result is expected.
+- Flutterwave v3 collected payments are retrieved from the read-only charges collection. The adapter requests succeeded, pending, failed, and voided statuses separately.
+- Flutterwave v3 sandbox transactions are test data. Settlement records are only available for eligible live/production transactions, so an empty sandbox settlement result is expected.
 - Both adapters follow provider pagination metadata. The `max_pages` limit is a deliberate safety bound; if more pages exist, the tool returns an explicit `provider_warnings` entry instead of silently presenting the result as complete.
 - This report is not a substitute for bank-statement reconciliation or a merchant order ledger.
 
@@ -56,8 +56,8 @@ Provider adapter tests use mocked API responses; they verify normalization and p
 For live, read-only provider verification, add these GitHub Actions repository secrets:
 
 - `PAYSTACK_TEST_SECRET_KEY`
-- `FLUTTERWAVE_CLIENT_ID`
-- `FLUTTERWAVE_CLIENT_SECRET`
+- `FLUTTERWAVE_SECRET_KEY`
+- `FLUTTERWAVE_SECRET_KEY`
 
 Then run **Actions → Live provider smoke test → Run workflow** and select the provider(s) to check. The workflow reads a 14-day window, caps each endpoint at two pages, and prints only record counts and pagination warnings. It does not print transaction details or credentials. Do not add production credentials.
 
@@ -88,7 +88,7 @@ hermes plugins validate payops/ --install-deps
 
 ## Catalogue readiness
 
-PayOps is not ready for Hermes catalogue submission yet. The current Flutterwave v4 integration performs its own OAuth 2.0 `client_credentials` token exchange. Hermes' current catalogue admission rule 11 requires OAuth tokens to be managed by Hermes and says plugins must not acquire or refresh them independently. Hermes currently documents an interactive PKCE OAuth client flow, which is not interchangeable with Flutterwave's machine-to-machine flow.
+PayOps is not ready for Hermes catalogue submission yet. The Flutterwave integration now uses the v3 API with a static secret key read from Hermes secret storage. It does not independently acquire or refresh OAuth tokens. This removes the specific Rule 11 conflict identified in the previous v4 implementation.
 
 A feature request has been opened with Hermes to add Hermes-managed `client_credentials` support: https://github.com/NousResearch/hermes-agent/issues/149975. Until Hermes provides a supported route or maintainers confirm an acceptable alternative, do not submit PayOps to the catalogue.
 
