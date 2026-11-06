@@ -33,3 +33,31 @@ def test_flutterwave_succeeded_status_counts_toward_successful_total():
     assert summary["failed_count"] == 1
     assert summary["transaction_amount_minor"] == 12500
 
+def test_reconcile_tool_handler_returns_normalized_report_and_provider_diagnostics():
+    import json
+    from unittest.mock import patch
+    from payops.tools import reconcile
+
+    transactions = [
+        Transaction("flutterwave", "1", "fw_1", 12500, "NGN", "succeeded"),
+    ]
+    settlements = [
+        Settlement("flutterwave", "set_1", "NGN", 12000, "settled"),
+    ]
+    with patch(
+        "payops.tools._collect",
+        return_value=(transactions, settlements, [], ["flutterwave: page cap reached"]),
+    ):
+        result = json.loads(reconcile({
+            "from_date": "2026-10-01",
+            "to_date": "2026-10-31",
+            "providers": ["flutterwave"],
+        }))
+
+    assert result["transaction_count"] == 1
+    assert result["settlement_count"] == 1
+    assert result["transaction_summaries"][0]["transaction_amount_minor"] == 12500
+    assert result["settlement_summaries"][0]["settled_amount_minor"] == 12000
+    assert result["provider_errors"] == []
+    assert result["provider_warnings"] == ["flutterwave: page cap reached"]
+
