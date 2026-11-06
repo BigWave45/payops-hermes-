@@ -1,18 +1,38 @@
-"""Read-only Flutterwave v3 API adapter."""
-from .http import get_json, ProviderError
+"""Read-only Flutterwave v4 sandbox API adapter."""
+from uuid import uuid4
+
+from .http import get_json, post_form_json, ProviderError
 from ..models import Transaction, Settlement
 from ..money import to_minor, currency_decimals
 
+TOKEN_URL = "https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token"
+
 
 class Flutterwave:
-    base_url = "https://api.flutterwave.com/v3"
+    base_url = "https://developersandbox-api.flutterwave.com"
 
-    def __init__(self, token):
+    def __init__(self, client_id, client_secret):
+        if not client_id or not client_secret:
+            raise ProviderError("Flutterwave v4 client credentials are not configured")
+        token_response = post_form_json(TOKEN_URL, {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
+        })
+        token = token_response.get("access_token")
+        if not isinstance(token, str) or not token:
+            raise ProviderError("Flutterwave OAuth response did not contain an access token")
         self.token = token
         self.warnings = []
 
     def _get(self, path, params):
-        response = get_json(self.base_url, path, self.token, params)
+        response = get_json(
+            self.base_url,
+            path,
+            self.token,
+            params,
+            headers={"X-Trace-Id": str(uuid4())},
+        )
         if response.get("status") != "success":
             raise ProviderError("Flutterwave API reported an unsuccessful response")
         rows = response.get("data")
@@ -25,31 +45,37 @@ class Flutterwave:
             total_pages = int(page_info["total_pages"])
         except (KeyError, TypeError, ValueError):
             raise ProviderError("Flutterwave response has invalid pagination metadata") from None
-        if total_pages < 1:
-            total_pages = 1
-        return rows, total_pages
+        return rows, max(total_pages, 1)
 
     def transactions(self, from_date, to_date, max_pages):
         out = []
-        # v3 list endpoint exposes successful/failed filters; pending states may be absent.
-        for status in ("successful", "failed"):
+        # v4 exposes collected payments through the read-only charges collection.
+        # Pending, succeeded, failed and voided are requested separately so that
+        # the result is not silently restricted to successful charges.
+        for status in ("succeeded", "pending", "failed", "voided"):
             for page in range(1, max_pages + 1):
-                rows, total_pages = self._get("transactions", {
-                    "from": from_date, "to": to_date, "status": status, "page": page,
+                rows, total_pages = self._get("charges", {
+                    "from": from_date + "T00:00:00Z",
+                    "to": to_date + "T23:59:59Z",
+                    "status": status,
+                    "page": page,
+                    "size": 50,
                 })
                 for row in rows:
                     currency = str(row.get("currency") or "NGN").upper()
                     out.append(Transaction(
                         provider="flutterwave",
                         transaction_id=str(row.get("id", "")),
-                        reference=str(row.get("tx_ref") or row.get("flw_ref") or ""),
+                        reference=str(row.get("reference") or ""),
                         amount_minor=to_minor(row.get("amount") or 0, currency_decimals(currency)),
                         currency=currency,
                         status=str(row.get("status") or status).lower(),
-                        paid_at=row.get("created_at") or row.get("charged_at"),
+                        paid_at=row.get("created_datetime"),
                     ))
                 if page >= max_pages and page < total_pages:
-                    self.warnings.append(f"transactions ({status}): fetched {page} of {total_pages} pages (max_pages={max_pages})")
+                    self.warnings.append(
+                        f"transactions ({status}): fetched {page} of {total_pages} pages (max_pages={max_pages})"
+                    )
                 if page >= total_pages or not rows:
                     break
         return out
@@ -58,23 +84,28 @@ class Flutterwave:
         out = []
         for page in range(1, max_pages + 1):
             rows, total_pages = self._get("settlements", {
-                "from": from_date, "to": to_date, "page": page,
+                "from": from_date,
+                "to": to_date,
+                "page": page,
+                "size": 50,
             })
             for row in rows:
                 currency = str(row.get("currency") or "NGN").upper()
-                amount = row.get("amount")
+                amount = row.get("net_amount")
                 if amount is None:
-                    amount = row.get("net_amount") or 0
+                    amount = row.get("gross_amount") or 0
                 out.append(Settlement(
                     provider="flutterwave",
                     settlement_id=str(row.get("id", "")),
                     currency=currency,
                     amount_minor=to_minor(amount, currency_decimals(currency)),
                     status=str(row.get("status") or "unknown").lower(),
-                    settled_at=row.get("created_at") or row.get("settlement_date"),
+                    settled_at=row.get("created_datetime") or row.get("due_datetime"),
                 ))
             if page >= max_pages and page < total_pages:
-                self.warnings.append(f"settlements: fetched {page} of {total_pages} pages (max_pages={max_pages})")
+                self.warnings.append(
+                    f"settlements: fetched {page} of {total_pages} pages (max_pages={max_pages})"
+                )
             if page >= total_pages or not rows:
                 break
         return out
