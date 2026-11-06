@@ -74,7 +74,7 @@ hermes plugins doctor payops/ --ci
 hermes plugins validate payops/ --install-deps
 ```
 
-For a live sandbox test, install the plugin into that Hermes profile, configure the Flutterwave v4 test Client ID and Client Secret, run `hermes auth add payops:flutterwave`, and invoke `payops_list_transactions` with `providers: ["flutterwave"]`. This checks OAuth and read-only charge listing. Settlement retrieval must be tested against an approved live account; do not use production credentials just for a smoke test.
+For an automated sandbox test, add GitHub Actions repository secrets named `FLUTTERWAVE_TEST_CLIENT_ID` and `FLUTTERWAVE_TEST_CLIENT_SECRET`, then run **Actions → Flutterwave v4 OAuth sandbox smoke test → Run workflow**. The workflow creates an isolated Hermes profile, runs `hermes auth add payops:flutterwave`, and verifies read-only charge listing without printing credentials or transaction details. It uses sandbox credentials only. Settlement retrieval must be tested against an approved live account; do not use production credentials just for a smoke test.
 
 ## Security boundaries
 
