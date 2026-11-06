@@ -12,7 +12,7 @@ def build_report(transactions, settlements):
         seen.add(key)
         item = summaries[(tx.provider, tx.currency)]
         item["transaction_count"] += 1
-        if tx.status in ("success", "successful"):
+        if tx.status in ("success", "successful", "succeeded"):
             item["successful_count"] += 1
             item["transaction_amount_minor"] += tx.amount_minor
         elif tx.status in ("failed", "failure"):
@@ -38,7 +38,7 @@ def build_report(transactions, settlements):
         "limitations": [
             "Transaction totals and settlement totals are reported separately; settlement timing can lag transaction activity.",
             "Duplicate references are detected only within the same provider.",
-            "Flutterwave v3 transaction listing uses successful and failed status filters; pending or in-progress records may not be returned.",
+            "Flutterwave v4 charge listing queries succeeded, pending, failed, and voided statuses.",
             "This report does not establish bank-statement or merchant-order-ledger equivalence."
         ],
     }
