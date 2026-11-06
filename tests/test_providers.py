@@ -8,7 +8,7 @@ from payops.providers.http import ProviderError, get_json
 def test_paystack_amounts_are_already_minor_units(monkeypatch):
     def fake_get_json(base_url, path, token, params):
         if path == "transaction":
-            return {"status": True, "data": [{
+            return {"status": True, "meta": {"pageCount": 1}, "data": [{
                 "id": 17,
                 "reference": "ps_ref_17",
                 "amount": 12345,
@@ -17,7 +17,7 @@ def test_paystack_amounts_are_already_minor_units(monkeypatch):
                 "paid_at": "2026-11-05T12:00:00Z",
             }]}
         if path == "settlement":
-            return {"status": True, "data": [{
+            return {"status": True, "meta": {"pageCount": 1}, "data": [{
                 "id": 9,
                 "total_amount": 12000,
                 "currency": "NGN",
