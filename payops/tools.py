@@ -42,8 +42,10 @@ def _collect(args):
                 continue
             adapter = Paystack(token) if name == "paystack" else Flutterwave(token)
             transactions.extend(adapter.transactions(start, end, pages))
+            warning_count = len(getattr(adapter, "warnings", []))
+            warnings.extend(f"{name}: {warning}" for warning in adapter.warnings)
             settlements.extend(adapter.settlements(start, end, pages))
-            warnings.extend(getattr(adapter, "warnings", []))
+            warnings.extend(f"{name}: {warning}" for warning in adapter.warnings[warning_count:])
         except ImportError:
             errors.append({"provider": name, "error": "Hermes secret storage is unavailable in this runtime"})
         except Exception as exc:
