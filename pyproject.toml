@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "payops-hermes"
-version = "0.1.0"
+version = "0.2.0"
 description = "Read-only Paystack and Flutterwave reconciliation tools for Hermes Agent"
 requires-python = ">=3.10"
 dependencies = []
