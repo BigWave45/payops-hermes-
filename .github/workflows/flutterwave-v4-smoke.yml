@@ -1,0 +1,81 @@
+name: Flutterwave v4 OAuth sandbox smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutterwave-v4-sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out PayOps
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Check out Hermes OAuth feature branch
+        uses: actions/checkout@v4
+        with:
+          repository: BigWave45/hermes-agent
+          ref: feat/plugin-oauth-client-credentials
+          path: hermes-agent
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: hermes-agent/uv.lock
+
+      - name: Install Hermes environment
+        working-directory: hermes-agent
+        run: uv sync --frozen --no-dev
+
+      - name: Configure isolated Hermes profile and install PayOps
+        working-directory: hermes-agent
+        env:
+          HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
+          FLUTTERWAVE_TEST_CLIENT_ID: ${{ secrets.FLUTTERWAVE_TEST_CLIENT_ID }}
+          FLUTTERWAVE_TEST_CLIENT_SECRET: ${{ secrets.FLUTTERWAVE_TEST_CLIENT_SECRET }}
+        run: |
+          set -eu
+          test -n "$FLUTTERWAVE_TEST_CLIENT_ID"
+          test -n "$FLUTTERWAVE_TEST_CLIENT_SECRET"
+          mkdir -p "$HERMES_HOME/plugins/payops"
+          cp -R ../payops/. "$HERMES_HOME/plugins/payops/"
+          umask 077
+          printf 'FLUTTERWAVE_CLIENT_ID=%s\nFLUTTERWAVE_CLIENT_SECRET=%s\n' \
+            "$FLUTTERWAVE_TEST_CLIENT_ID" "$FLUTTERWAVE_TEST_CLIENT_SECRET" > "$HERMES_HOME/.env"
+          uv run hermes auth add payops:flutterwave
+
+      - name: Verify read-only Flutterwave v4 charge listing
+        working-directory: hermes-agent
+        env:
+          HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
+        run: |
+          PYTHONPATH="$HERMES_HOME/plugins/payops" uv run python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          from payops.providers import Flutterwave
+
+          end = datetime.now(timezone.utc)
+          start = end - timedelta(days=14)
+          adapter = Flutterwave()
+          rows = adapter.transactions(
+              start.strftime("%Y-%m-%d"),
+              end.strftime("%Y-%m-%d"),
+              max_pages=2,
+          )
+          print(
+              "Flutterwave v4 sandbox OAuth and charge listing succeeded; "
+              f"charges={len(rows)}; pagination_warnings={len(adapter.warnings)}"
+          )
+          for warning in adapter.warnings:
+              print("pagination warning: " + warning)
+          PY
