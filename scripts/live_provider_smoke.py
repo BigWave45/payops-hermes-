@@ -7,19 +7,12 @@ from pathlib import Path
 import os
 import sys
 
-# Direct execution sets sys.path[0] to scripts/, not the repository root.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from payops.providers import Flutterwave, Paystack
 from payops.providers.http import ProviderError
-
-
-PROVIDERS = {
-    "paystack": ("PAYSTACK_TEST_SECRET_KEY", Paystack),
-    "flutterwave": ("FLUTTERWAVE_TEST_SECRET_KEY", Flutterwave),
-}
 
 
 def validate_records(provider, transactions, settlements):
@@ -38,8 +31,8 @@ def validate_records(provider, transactions, settlements):
 def main():
     requested = [p.strip() for p in os.environ.get("PAYOPS_PROVIDERS", "both").split(",")]
     if requested == ["both"]:
-        requested = list(PROVIDERS)
-    if not requested or any(p not in PROVIDERS for p in requested) or len(set(requested)) != len(requested):
+        requested = ["paystack", "flutterwave"]
+    if not requested or any(p not in ("paystack", "flutterwave") for p in requested) or len(set(requested)) != len(requested):
         print("Invalid PAYOPS_PROVIDERS selection.", file=sys.stderr)
         return 2
 
@@ -49,15 +42,20 @@ def main():
     failed = False
 
     for name in requested:
-        secret_name, adapter_type = PROVIDERS[name]
-        token = os.environ.get(secret_name)
-        if not token:
-            print(f"{name}: missing required Actions secret {secret_name}", file=sys.stderr)
-            failed = True
-            continue
         stage = "initialization"
         try:
-            adapter = adapter_type(token)
+            if name == "paystack":
+                token = os.environ.get("PAYSTACK_TEST_SECRET_KEY")
+                if not token:
+                    raise ProviderError("missing required Actions secret PAYSTACK_TEST_SECRET_KEY")
+                adapter = Paystack(token)
+            else:
+                client_id = os.environ.get("FLUTTERWAVE_CLIENT_ID")
+                client_secret = os.environ.get("FLUTTERWAVE_CLIENT_SECRET")
+                if not client_id or not client_secret:
+                    raise ProviderError("missing required Actions secrets FLUTTERWAVE_CLIENT_ID and FLUTTERWAVE_CLIENT_SECRET")
+                adapter = Flutterwave(client_id, client_secret)
+
             stage = "transaction listing"
             transactions = adapter.transactions(from_date, to_date, max_pages=2)
             stage = "settlement listing"
@@ -70,13 +68,12 @@ def main():
             )
             for warning in adapter.warnings:
                 print(f"{name}: warning: {warning}")
+            if name == "flutterwave":
+                print("flutterwave: note: sandbox settlement data is not expected; settlements require eligible live transactions")
         except ProviderError as exc:
-            # ProviderError messages are deliberately sanitized by the HTTP client
-            # and adapter; they contain status/category only, never response bodies.
             print(f"{name}: {stage} failed ({exc})", file=sys.stderr)
             failed = True
         except Exception as exc:
-            # Do not print arbitrary exception messages from third-party code.
             print(f"{name}: {stage} failed ({type(exc).__name__})", file=sys.stderr)
             failed = True
 
