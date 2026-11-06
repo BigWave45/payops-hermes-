@@ -1,4 +1,5 @@
 """Read-only Flutterwave v4 adapter using Hermes-managed OAuth credentials."""
+from datetime import datetime, timezone
 from urllib.parse import urlencode
 from uuid import uuid4
 
@@ -80,7 +81,18 @@ class Flutterwave:
 
     @staticmethod
     def _range(from_date, to_date):
-        return {"from": from_date + "T00:00:00Z", "to": to_date + "T23:59:59Z"}
+        # Flutterwave rejects an end timestamp later than the current instant.
+        # Keep historical dates inclusive, but cap today/future end dates at now.
+        now = datetime.now(timezone.utc)
+        today = now.date().isoformat()
+        if from_date > today:
+            raise ProviderError("Flutterwave date range cannot start in the future")
+        end = (
+            now.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            if to_date >= today
+            else to_date + "T23:59:59Z"
+        )
+        return {"from": from_date + "T00:00:00Z", "to": end}
 
     def transactions(self, from_date, to_date, max_pages):
         out = []
