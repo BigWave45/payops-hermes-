@@ -1,6 +1,5 @@
 name: payops
 version: "0.1.0"
-requires_hermes: ">=0.23.0"
 description: Read-only Paystack and Flutterwave transaction inspection and reconciliation for Hermes agents.
 provides_tools:
   - payops_list_transactions
