@@ -1,5 +1,5 @@
 name: payops
-version: "0.1.0"
+version: "0.2.0"
 description: Read-only Paystack and Flutterwave transaction inspection and reconciliation for Hermes agents.
 requires_hermes: ">=0.23.0"
 provides_tools:
@@ -10,7 +10,20 @@ requires_env:
     description: Paystack API secret key. Use a test key during development.
     url: https://dashboard.paystack.com/#/settings/developer
     secret: true
-  - name: FLUTTERWAVE_SECRET_KEY
-    description: Flutterwave v3 secret API key. Use a test key during development.
-    url: https://developer.flutterwave.com/docs/authentication
+  - name: FLUTTERWAVE_CLIENT_ID
+    description: Flutterwave v4 OAuth client ID.
+    url: https://developer.flutterwave.com/v4.0/docs/authentication
     secret: true
+  - name: FLUTTERWAVE_CLIENT_SECRET
+    description: Flutterwave v4 OAuth client secret.
+    url: https://developer.flutterwave.com/v4.0/docs/authentication
+    secret: true
+oauth:
+  - id: flutterwave
+    grant_type: client_credentials
+    token_url: https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token
+    client_id_env: FLUTTERWAVE_CLIENT_ID
+    client_secret_env: FLUTTERWAVE_CLIENT_SECRET
+    hosts:
+      - developersandbox-api.flutterwave.com
+      - f4bexperience.flutterwave.com
