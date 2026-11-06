@@ -173,3 +173,43 @@ def test_legacy_flutterwave_v3_host_is_not_allowed_by_static_key_client():
         assert "not permitted" in str(exc)
     else:
         raise AssertionError("legacy Flutterwave v3 host must not be allowed")
+
+def test_flutterwave_range_keeps_historical_end_date_inclusive():
+    from datetime import datetime, timedelta, timezone
+
+    yesterday = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
+    result = flutterwave_module.Flutterwave._range(yesterday, yesterday)
+    assert result == {
+        "from": yesterday + "T00:00:00Z",
+        "to": yesterday + "T23:59:59Z",
+    }
+
+
+def test_flutterwave_range_caps_today_and_future_end_dates_at_now():
+    from datetime import datetime, timedelta, timezone
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    future = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+    before = datetime.now(timezone.utc)
+
+    today_result = flutterwave_module.Flutterwave._range(today, today)
+    future_result = flutterwave_module.Flutterwave._range(today, future)
+
+    after = datetime.now(timezone.utc)
+    for result in (today_result, future_result):
+        end = datetime.fromisoformat(result["to"].replace("Z", "+00:00"))
+        assert before.replace(microsecond=0) <= end <= after
+        assert end.microsecond == 0
+
+
+def test_flutterwave_range_rejects_future_start_date():
+    from datetime import datetime, timedelta, timezone
+
+    future = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+    try:
+        flutterwave_module.Flutterwave._range(future, future)
+    except ProviderError as exc:
+        assert "future" in str(exc)
+    else:
+        raise AssertionError("future Flutterwave start date should be rejected")
+
