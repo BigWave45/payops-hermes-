@@ -50,11 +50,10 @@ def main():
                     raise ProviderError("missing required Actions secret PAYSTACK_TEST_SECRET_KEY")
                 adapter = Paystack(token)
             else:
-                client_id = os.environ.get("FLUTTERWAVE_CLIENT_ID")
-                client_secret = os.environ.get("FLUTTERWAVE_CLIENT_SECRET")
-                if not client_id or not client_secret:
-                    raise ProviderError("missing required Actions secrets FLUTTERWAVE_CLIENT_ID and FLUTTERWAVE_CLIENT_SECRET")
-                adapter = Flutterwave(client_id, client_secret)
+                secret_key = os.environ.get("FLUTTERWAVE_TEST_SECRET_KEY")
+                if not secret_key:
+                    raise ProviderError("missing required Actions secret FLUTTERWAVE_TEST_SECRET_KEY")
+                adapter = Flutterwave(secret_key)
 
             stage = "transaction listing"
             transactions = adapter.transactions(from_date, to_date, max_pages=2)
@@ -68,8 +67,6 @@ def main():
             )
             for warning in adapter.warnings:
                 print(f"{name}: warning: {warning}")
-            if name == "flutterwave":
-                print("flutterwave: note: sandbox settlement data is not expected; settlements require eligible live transactions")
         except ProviderError as exc:
             print(f"{name}: {stage} failed ({exc})", file=sys.stderr)
             failed = True
