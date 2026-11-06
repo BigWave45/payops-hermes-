@@ -1,5 +1,6 @@
 """Read-only Flutterwave v4 adapter using Hermes-managed OAuth credentials."""
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from ..models import Transaction, Settlement
 from ..money import to_minor, currency_decimals
@@ -27,11 +28,28 @@ class Flutterwave:
             url += "?" + urlencode(params)
         response = credentialed_provider_request(
             "flutterwave", "GET", url,
-            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "X-Trace-Id": str(uuid4()),
+            },
             timeout=20,
         )
         if not 200 <= response.status < 300:
-            raise ProviderError("Flutterwave API returned HTTP %s" % response.status)
+            detail = ""
+            try:
+                error_payload = response.json()
+                if isinstance(error_payload, dict):
+                    parts = []
+                    for key in ("code", "error", "message", "detail"):
+                        value = error_payload.get(key)
+                        if isinstance(value, str) and value.strip():
+                            parts.append(" ".join(value.split())[:120])
+                    detail = "; ".join(dict.fromkeys(parts))[:240]
+            except (ValueError, TypeError):
+                pass
+            suffix = ": " + detail if detail else ""
+            raise ProviderError("Flutterwave API returned HTTP %s%s" % (response.status, suffix))
         try:
             payload = response.json()
         except (ValueError, TypeError):
