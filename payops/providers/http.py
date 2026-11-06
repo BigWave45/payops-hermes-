@@ -7,8 +7,6 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 ALLOWED_HOSTS = {
     "api.paystack.co",
     "api.flutterwave.com",
-    "idp.flutterwave.com",
-    "developersandbox-api.flutterwave.com",
 }
 
 
@@ -52,19 +50,16 @@ def _decode_response(response):
     return data
 
 
-def get_json(base_url, path, token, params=None, headers=None):
+def get_json(base_url, path, token, params=None):
     _validate_url(base_url)
     url = base_url.rstrip("/") + "/" + path.lstrip("/")
     if params:
         url += "?" + urlencode(params)
-    request_headers = {
+    request = Request(url, headers={
         "Authorization": "Bearer " + token,
         "Accept": "application/json",
         "User-Agent": "payops-hermes/0.1",
-    }
-    if headers:
-        request_headers.update(headers)
-    request = Request(url, headers=request_headers, method="GET")
+    }, method="GET")
     try:
         with _OPENER.open(request, timeout=20) as response:
             return _decode_response(response)
@@ -100,24 +95,5 @@ def _safe_error_detail(exc):
                 visit(item)
 
     visit(payload)
-    # Preserve order while avoiding repeated provider messages.
     unique = list(dict.fromkeys(parts))
     return "; ".join(unique)[:240]
-
-def post_form_json(url, fields):
-    parsed = _validate_url(url)
-    if parsed.hostname != "idp.flutterwave.com":
-        raise ProviderError("Provider endpoint is not permitted")
-    body = urlencode(fields).encode("utf-8")
-    request = Request(url, data=body, headers={
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-        "User-Agent": "payops-hermes/0.1",
-    }, method="POST")
-    try:
-        with _OPENER.open(request, timeout=20) as response:
-            return _decode_response(response)
-    except HTTPError as exc:
-        raise ProviderError("Provider returned HTTP %s" % exc.code) from None
-    except (URLError, TimeoutError, OSError):
-        raise ProviderError("Could not reach payment provider") from None
