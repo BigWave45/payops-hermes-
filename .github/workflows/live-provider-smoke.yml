@@ -1,0 +1,37 @@
+name: Live provider smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      providers:
+        description: Which provider test credentials to verify
+        required: true
+        type: choice
+        options:
+          - both
+          - paystack
+          - flutterwave
+        default: both
+
+permissions:
+  contents: read
+
+jobs:
+  live-provider-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out PayOps
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Run read-only test-mode provider checks
+        env:
+          PAYOPS_PROVIDERS: ${{ inputs.providers }}
+          PAYSTACK_TEST_SECRET_KEY: ${{ secrets.PAYSTACK_TEST_SECRET_KEY }}
+          FLUTTERWAVE_TEST_SECRET_KEY: ${{ secrets.FLUTTERWAVE_TEST_SECRET_KEY }}
+        run: python scripts/live_provider_smoke.py
