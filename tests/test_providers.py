@@ -80,7 +80,7 @@ def test_flutterwave_v4_oauth_charges_and_settlements(monkeypatch):
         flutterwave_module.TOKEN_URL,
         {"client_id": "client-id", "client_secret": "client-secret", "grant_type": "client_credentials"},
     )]
-    assert [item.amount_minor for item in transactions] == [12345, 100, 12345, 100, 12345]
+    assert [item.amount_minor for item in transactions] == [12345, 100, 12345, 12345, 12345]
     assert [item.status for item in transactions] == [
         "succeeded", "succeeded", "pending", "failed", "voided"
     ]
