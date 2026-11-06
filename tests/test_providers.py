@@ -5,6 +5,18 @@ from payops.providers import paystack as paystack_module
 from payops.providers.http import ProviderError, get_json
 
 
+def _patch_hermes_request(monkeypatch, handler):
+    import sys
+    import types
+
+    package = types.ModuleType("hermes_cli")
+    package.__path__ = []
+    module = types.ModuleType("hermes_cli.plugin_provider_requests")
+    module.credentialed_provider_request = handler
+    monkeypatch.setitem(sys.modules, "hermes_cli", package)
+    monkeypatch.setitem(sys.modules, "hermes_cli.plugin_provider_requests", module)
+
+
 def test_paystack_amounts_are_already_minor_units(monkeypatch):
     def fake_get_json(base_url, path, token, params):
         if path == "transaction":
@@ -77,8 +89,7 @@ def test_flutterwave_v4_oauth_transactions_and_settlements(monkeypatch):
             })
         raise AssertionError(parsed.path)
 
-    import hermes_cli.plugin_provider_requests as requests_module
-    monkeypatch.setattr(requests_module, "credentialed_provider_request", fake_request)
+    _patch_hermes_request(monkeypatch, fake_request)
     adapter = flutterwave_module.Flutterwave()
     transactions = adapter.transactions("2026-11-01", "2026-11-06", 3)
     settlements = adapter.settlements("2026-11-01", "2026-11-06", 3)
@@ -121,8 +132,7 @@ def test_flutterwave_v4_discloses_page_cap(monkeypatch):
         calls.append(url)
         return Response()
 
-    import hermes_cli.plugin_provider_requests as requests_module
-    monkeypatch.setattr(requests_module, "credentialed_provider_request", fake_request)
+    _patch_hermes_request(monkeypatch, fake_request)
     adapter = flutterwave_module.Flutterwave()
     records = adapter.transactions("2026-11-01", "2026-11-06", 1)
     assert len(records) == 4
@@ -146,9 +156,7 @@ def test_flutterwave_rejects_non_success_and_bad_response(monkeypatch):
         def json():
             return {"status": "failed", "data": []}
 
-    import hermes_cli.plugin_provider_requests as requests_module
-    monkeypatch.setattr(requests_module, "credentialed_provider_request",
-                        lambda *args, **kwargs: Response())
+    _patch_hermes_request(monkeypatch, lambda *args, **kwargs: Response())
     adapter = flutterwave_module.Flutterwave()
     try:
         adapter.transactions("2026-11-01", "2026-11-06", 1)
