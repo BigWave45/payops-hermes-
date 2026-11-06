@@ -9,6 +9,7 @@ class Flutterwave:
 
     def __init__(self, token):
         self.token = token
+        self.warnings = []
 
     def _get(self, path, params):
         response = get_json(self.base_url, path, self.token, params)
@@ -47,6 +48,8 @@ class Flutterwave:
                         status=str(row.get("status") or status).lower(),
                         paid_at=row.get("created_at") or row.get("charged_at"),
                     ))
+                if page >= max_pages and page < total_pages:
+                    self.warnings.append(f"transactions ({status}): fetched {page} of {total_pages} pages (max_pages={max_pages})")
                 if page >= total_pages or not rows:
                     break
         return out
@@ -70,6 +73,8 @@ class Flutterwave:
                     status=str(row.get("status") or "unknown").lower(),
                     settled_at=row.get("created_at") or row.get("settlement_date"),
                 ))
+            if page >= max_pages and page < total_pages:
+                self.warnings.append(f"settlements: fetched {page} of {total_pages} pages (max_pages={max_pages})")
             if page >= total_pages or not rows:
                 break
         return out
