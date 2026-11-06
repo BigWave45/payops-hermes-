@@ -37,9 +37,10 @@ def main():
         print("Invalid PAYOPS_PROVIDERS selection.", file=sys.stderr)
         return 2
 
-    end = datetime.now(timezone.utc).date()
+    end = datetime.now(timezone.utc)
     start = end - timedelta(days=14)
-    from_date, to_date = start.isoformat(), end.isoformat()
+    from_date = start.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    to_date = end.isoformat(timespec="milliseconds").replace("+00:00", "Z")
     failed = False
     paystack_reference = os.environ.get("PAYSTACK_TEST_REFERENCE", "").strip()
     if paystack_reference and "paystack" not in requested:
