@@ -51,6 +51,8 @@ Provider API calls are HTTPS GET requests only. Responses are capped at 5 MB and
 
 Provider adapter tests use mocked API responses; they verify normalization and pagination behavior but do not replace live test-key verification.
 
+For live, read-only provider verification, add test-mode credentials as GitHub Actions repository secrets named `PAYSTACK_TEST_SECRET_KEY` and `FLUTTERWAVE_TEST_SECRET_KEY`. Then run **Actions → Live provider smoke test → Run workflow** and select the provider(s) to check. The workflow reads a 14-day window, caps each endpoint at two pages, and prints only record counts and pagination warnings. It does not print transaction details or credentials. Do not add production keys.
+
 Run tests with:
 
 ```bash
