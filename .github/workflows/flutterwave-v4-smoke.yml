@@ -56,7 +56,7 @@ jobs:
           mkdir -p "$HERMES_HOME/plugins/payops"
           cp -R ../payops/. "$HERMES_HOME/plugins/payops/"
           umask 077
-          printf 'FLUTTERWAVE_CLIENT_ID=%s\\nFLUTTERWAVE_CLIENT_SECRET=%s\\n' \\
+          printf 'FLUTTERWAVE_CLIENT_ID=%s\nFLUTTERWAVE_CLIENT_SECRET=%s\n' \
             "$FLUTTERWAVE_CLIENT_ID" "$FLUTTERWAVE_CLIENT_SECRET" > "$HERMES_HOME/.env"
           uv run hermes auth add payops:flutterwave
 
