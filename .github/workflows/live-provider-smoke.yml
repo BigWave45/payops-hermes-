@@ -1,17 +1,15 @@
-name: Live provider smoke test
+name: Paystack live smoke test
 
 on:
   workflow_dispatch:
     inputs:
       providers:
-        description: Which provider test credentials to verify
+        description: Paystack test credentials to verify
         required: true
         type: choice
         options:
-          - both
           - paystack
-          - flutterwave
-        default: both
+        default: paystack
       paystack_reference:
         description: Optional Paystack test transaction reference to verify
         required: false
