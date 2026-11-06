@@ -8,6 +8,7 @@ class Paystack:
 
     def __init__(self, token):
         self.token = token
+        self.warnings = []
 
     def _get(self, path, params):
         response = get_json(self.base_url, path, self.token, params)
@@ -41,6 +42,10 @@ class Paystack:
                     status=str(row.get("status") or "unknown").lower(),
                     paid_at=row.get("paid_at") or row.get("transaction_date"),
                 ))
+            if page >= max_pages and page < page_count:
+                self.warnings.append(f"transactions: fetched {page} of {page_count} pages (max_pages={max_pages})")
+            if page >= max_pages and page < page_count:
+                self.warnings.append(f"settlements: fetched {page} of {page_count} pages (max_pages={max_pages})")
             if page >= page_count or not rows:
                 break
         return out
