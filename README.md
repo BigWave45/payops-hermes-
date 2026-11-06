@@ -74,7 +74,7 @@ hermes plugins doctor payops/ --ci
 hermes plugins validate payops/ --install-deps
 ```
 
-For an automated sandbox test, add GitHub Actions repository secrets named `FLUTTERWAVE_CLIENT_ID` and `FLUTTERWAVE_CLIENT_SECRET`. The smoke workflow runs automatically when its workflow file or the Flutterwave adapter changes on `feat/flutterwave-v4-hermes-oauth`; it can also be started manually when GitHub exposes the workflow for that branch. The workflow creates an isolated Hermes profile, runs `hermes auth add payops:flutterwave`, and verifies read-only charge listing without printing credentials or transaction details. It uses sandbox credentials only. Settlement retrieval must be tested against an approved live account; do not use production credentials just for a smoke test.
+For an automated sandbox test, add GitHub Actions repository secrets named `FLUTTERWAVE_CLIENT_ID` and `FLUTTERWAVE_CLIENT_SECRET`. The smoke workflow runs automatically when its workflow file or the Flutterwave adapter changes on `feat/flutterwave-v4-hermes-oauth`; it can also be started manually when GitHub exposes the workflow for that branch. The workflow creates an isolated Hermes profile, runs `hermes auth add payops:flutterwave`, and invokes the public `payops_list_transactions` tool against the sandbox without printing credentials or transaction details. It uses sandbox credentials only. Settlement retrieval must be tested against an approved live account; do not use production credentials just for a smoke test.
 
 ## Security boundaries
 
