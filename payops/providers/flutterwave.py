@@ -1,4 +1,5 @@
 """Read-only Flutterwave v4 sandbox API adapter."""
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from .http import get_json, post_form_json, ProviderError
@@ -49,14 +50,25 @@ class Flutterwave:
 
     def transactions(self, from_date, to_date, max_pages):
         out = []
+        # Flutterwave rejects an upper bound later than the current instant.
+        start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        requested_end = (
+            datetime.strptime(to_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            + timedelta(days=1)
+            - timedelta(seconds=1)
+        )
+        end_dt = min(requested_end, datetime.now(timezone.utc)).replace(microsecond=0)
+        if end_dt < start_dt:
+            return out
+
         # v4 exposes collected payments through the read-only charges collection.
         # Pending, succeeded, failed and voided are requested separately so that
         # the result is not silently restricted to successful charges.
         for status in ("succeeded", "pending", "failed", "voided"):
             for page in range(1, max_pages + 1):
                 rows, total_pages = self._get("charges", {
-                    "from": from_date + "T00:00:00Z",
-                    "to": to_date + "T23:59:59Z",
+                    "from": start_dt.isoformat().replace("+00:00", "Z"),
+                    "to": end_dt.isoformat().replace("+00:00", "Z"),
                     "status": status,
                     "page": page,
                     "size": 50,
