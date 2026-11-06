@@ -40,7 +40,7 @@ Flutterwave v4 test mode uses `https://developersandbox-api.flutterwave.com`. Pr
 PayOps runs inside Hermes Agent; it is not a standalone dashboard or hosted payment service. Install it from this repository using a Hermes build that includes the OAuth client-credentials feature:
 
 ```bash
-hermes plugins install BigWave45/payops-hermes- --ref 660e60805580e6e4ee8bc7ec02b929576a48e962
+hermes plugins install BigWave45/payops-hermes- --ref feat/flutterwave-v4-hermes-oauth
 hermes plugins enable payops
 ```
 
