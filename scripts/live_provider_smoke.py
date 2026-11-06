@@ -3,8 +3,16 @@
 This script never prints transaction identifiers, references, amounts, or credentials.
 """
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import os
 import sys
+
+# Direct execution sets sys.path[0] to scripts/, not the repository root.
+# Add the project root so "python scripts/live_provider_smoke.py" works
+# without requiring an editable install or a PYTHONPATH override.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from payops.providers import Flutterwave, Paystack
 
