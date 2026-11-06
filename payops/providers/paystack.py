@@ -44,8 +44,6 @@ class Paystack:
                 ))
             if page >= max_pages and page < page_count:
                 self.warnings.append(f"transactions: fetched {page} of {page_count} pages (max_pages={max_pages})")
-            if page >= max_pages and page < page_count:
-                self.warnings.append(f"settlements: fetched {page} of {page_count} pages (max_pages={max_pages})")
             if page >= page_count or not rows:
                 break
         return out
@@ -68,6 +66,8 @@ class Paystack:
                     status=str(row.get("status") or "unknown").lower(),
                     settled_at=row.get("settlement_date") or row.get("createdAt"),
                 ))
+            if page >= max_pages and page < page_count:
+                self.warnings.append(f"settlements: fetched {page} of {page_count} pages (max_pages={max_pages})")
             if page >= page_count or not rows:
                 break
         return out
