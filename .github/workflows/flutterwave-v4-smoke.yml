@@ -47,17 +47,17 @@ jobs:
         working-directory: hermes-agent
         env:
           HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
-          FLUTTERWAVE_TEST_CLIENT_ID: ${{ secrets.FLUTTERWAVE_TEST_CLIENT_ID }}
-          FLUTTERWAVE_TEST_CLIENT_SECRET: ${{ secrets.FLUTTERWAVE_TEST_CLIENT_SECRET }}
+          FLUTTERWAVE_CLIENT_ID: ${{ secrets.FLUTTERWAVE_CLIENT_ID }}
+          FLUTTERWAVE_CLIENT_SECRET: ${{ secrets.FLUTTERWAVE_CLIENT_SECRET }}
         run: |
           set -eu
-          test -n "$FLUTTERWAVE_TEST_CLIENT_ID"
-          test -n "$FLUTTERWAVE_TEST_CLIENT_SECRET"
+          test -n "$FLUTTERWAVE_CLIENT_ID"
+          test -n "$FLUTTERWAVE_CLIENT_SECRET"
           mkdir -p "$HERMES_HOME/plugins/payops"
           cp -R ../payops/. "$HERMES_HOME/plugins/payops/"
           umask 077
-          printf 'FLUTTERWAVE_CLIENT_ID=%s\nFLUTTERWAVE_CLIENT_SECRET=%s\n' \
-            "$FLUTTERWAVE_TEST_CLIENT_ID" "$FLUTTERWAVE_TEST_CLIENT_SECRET" > "$HERMES_HOME/.env"
+          printf 'FLUTTERWAVE_CLIENT_ID=%s\\nFLUTTERWAVE_CLIENT_SECRET=%s\\n' \\
+            "$FLUTTERWAVE_CLIENT_ID" "$FLUTTERWAVE_CLIENT_SECRET" > "$HERMES_HOME/.env"
           uv run hermes auth add payops:flutterwave
 
       - name: Verify read-only Flutterwave v4 charge listing
