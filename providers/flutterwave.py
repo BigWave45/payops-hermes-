@@ -1,7 +1,7 @@
 """Read-only Flutterwave v3 API adapter."""
 from .http import get_json, ProviderError
 from ..models import Transaction, Settlement
-from ..money import to_minor
+from ..money import to_minor, currency_decimals
 
 class Flutterwave:
     base_url = "https://api.flutterwave.com/v3"
@@ -29,7 +29,7 @@ class Flutterwave:
                         provider="flutterwave",
                         transaction_id=str(row.get("id", "")),
                         reference=str(row.get("tx_ref") or row.get("flw_ref") or ""),
-                        amount_minor=to_minor(row.get("amount") or 0),
+                        amount_minor=to_minor(row.get("amount") or 0, currency_decimals(str(row.get("currency") or "NGN"))),
                         currency=str(row.get("currency") or "NGN").upper(),
                         status=str(row.get("status") or status).lower(),
                         paid_at=row.get("created_at") or row.get("charged_at"),
@@ -47,7 +47,7 @@ class Flutterwave:
                     provider="flutterwave",
                     settlement_id=str(row.get("id", "")),
                     currency=str(row.get("currency") or "NGN").upper(),
-                    amount_minor=to_minor(row.get("amount") or row.get("net_amount") or 0),
+                    amount_minor=to_minor(row.get("amount") or row.get("net_amount") or 0, currency_decimals(str(row.get("currency") or "NGN"))),
                     status=str(row.get("status") or "unknown").lower(),
                     settled_at=row.get("created_at") or row.get("settlement_date"),
                 ))
