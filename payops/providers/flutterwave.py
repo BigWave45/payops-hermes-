@@ -94,10 +94,24 @@ class Flutterwave:
 
     def settlements(self, from_date, to_date, max_pages):
         out = []
+        start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        requested_end = (
+            datetime.strptime(to_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            + timedelta(days=1)
+            - timedelta(seconds=1)
+        )
+        end_dt = min(requested_end, datetime.now(timezone.utc)).replace(microsecond=0)
+        if end_dt < start_dt:
+            return out
+
+        # The v4 settlements endpoint requires ISO 8601 date-time values,
+        # unlike legacy v3 endpoints that accept YYYY-MM-DD.
+        from_value = start_dt.isoformat().replace("+00:00", "Z")
+        to_value = end_dt.isoformat().replace("+00:00", "Z")
         for page in range(1, max_pages + 1):
             rows, total_pages = self._get("settlements", {
-                "from": from_date,
-                "to": to_date,
+                "from": from_value,
+                "to": to_value,
                 "page": page,
                 "size": 50,
             })
