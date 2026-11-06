@@ -28,22 +28,30 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install Hermes Agent
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ./hermes-agent
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: hermes-agent/uv.lock
+
+      - name: Install pinned Hermes environment
+        working-directory: hermes-agent
+        run: uv sync --frozen --no-dev
 
       - name: Verify Hermes CLI
+        working-directory: hermes-agent
         env:
           HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
-        run: hermes --version
+        run: uv run hermes --version
 
       - name: Run Hermes plugin discovery and registration checks
+        working-directory: hermes-agent
         env:
           HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
-        run: hermes plugins doctor payops/ --ci
+        run: uv run hermes plugins doctor ../payops/ --ci
 
       - name: Run Hermes plugin validation
+        working-directory: hermes-agent
         env:
           HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
-        run: hermes plugins validate payops/ --install-deps
+        run: uv run hermes plugins validate ../payops/ --install-deps
