@@ -18,3 +18,18 @@ def test_transaction_and_settlement_totals_are_separate():
     assert report["transaction_summaries"][0]["transaction_amount_minor"] == 10000
     assert report["settlement_summaries"][0]["settled_amount_minor"] == 8000
     assert "exceptions" in report
+
+def test_flutterwave_succeeded_status_counts_toward_successful_total():
+    txs = [
+        Transaction("flutterwave", "1", "fw_1", 12500, "NGN", "succeeded"),
+        Transaction("flutterwave", "2", "fw_2", 500, "NGN", "pending"),
+        Transaction("flutterwave", "3", "fw_3", 250, "NGN", "failed"),
+        Transaction("flutterwave", "4", "fw_4", 100, "NGN", "voided"),
+    ]
+    report = build_report(txs, [])
+    summary = report["transaction_summaries"][0]
+    assert summary["transaction_count"] == 4
+    assert summary["successful_count"] == 1
+    assert summary["failed_count"] == 1
+    assert summary["transaction_amount_minor"] == 12500
+
