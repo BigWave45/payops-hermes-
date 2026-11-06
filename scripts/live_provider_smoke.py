@@ -40,6 +40,10 @@ def main():
     start = end - timedelta(days=14)
     from_date, to_date = start.isoformat(), end.isoformat()
     failed = False
+    paystack_reference = os.environ.get("PAYSTACK_TEST_REFERENCE", "").strip()
+    if paystack_reference and "paystack" not in requested:
+        print("PAYSTACK_TEST_REFERENCE requires the paystack provider selection.", file=sys.stderr)
+        return 2
 
     for name in requested:
         stage = "initialization"
@@ -54,6 +58,24 @@ def main():
                 if not secret_key:
                     raise ProviderError("missing required Actions secret FLUTTERWAVE_TEST_SECRET_KEY")
                 adapter = Flutterwave(secret_key)
+
+            if name == "paystack" and paystack_reference:
+                stage = "reference verification"
+                verification = paystack_module.get_json(
+                    "https://api.paystack.co",
+                    f"transaction/verify/{paystack_reference}",
+                    token,
+                )
+                verified = verification.get("data")
+                if verification.get("status") is not True or not isinstance(verified, dict):
+                    raise ProviderError("Paystack did not return a valid transaction verification response")
+                if str(verified.get("reference", "")) != paystack_reference:
+                    raise ProviderError("Paystack verification returned a different transaction reference")
+                print(
+                    "paystack: reference verification succeeded; "
+                    f"transaction_status={str(verified.get('status') or 'unknown').lower()}; "
+                    f"domain={str(verified.get('domain') or 'unknown').lower()}"
+                )
 
             stage = "transaction listing"
             transactions = adapter.transactions(from_date, to_date, max_pages=2)
