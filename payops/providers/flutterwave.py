@@ -76,9 +76,9 @@ class Flutterwave:
             })
             for row in rows:
                 currency = str(row.get("currency") or "NGN").upper()
-                amount = row.get("net_amount")
+                amount = row.get("amount")
                 if amount is None:
-                    amount = row.get("gross_amount") or 0
+                    amount = row.get("net_amount") or row.get("gross_amount") or 0
                 out.append(Settlement(
                     provider="flutterwave",
                     settlement_id=str(row.get("id", "")),
