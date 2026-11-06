@@ -2,7 +2,7 @@ name: Hermes compatibility
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/flutterwave-v4-hermes-oauth']
   pull_request:
     branches: [main]
 
@@ -19,8 +19,8 @@ jobs:
       - name: Check out pinned Hermes Agent release
         uses: actions/checkout@v4
         with:
-          repository: NousResearch/hermes-agent
-          ref: 2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19
+          repository: BigWave45/hermes-agent
+          ref: feat/plugin-oauth-client-credentials
           path: hermes-agent
 
       - name: Set up Python
