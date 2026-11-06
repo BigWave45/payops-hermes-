@@ -69,9 +69,29 @@ def get_json(base_url, path, token, params=None, headers=None):
         with _OPENER.open(request, timeout=20) as response:
             return _decode_response(response)
     except HTTPError as exc:
-        raise ProviderError("Provider returned HTTP %s" % exc.code) from None
+        detail = _safe_error_detail(exc)
+        suffix = ": " + detail if detail else ""
+        raise ProviderError("Provider returned HTTP %s%s" % (exc.code, suffix)) from None
     except (URLError, TimeoutError, OSError):
         raise ProviderError("Could not reach payment provider") from None
+
+
+def _safe_error_detail(exc):
+    """Expose only short provider error codes/messages, never raw response bodies."""
+    try:
+        payload = json.loads(exc.read(16 * 1024).decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    parts = []
+    for key in ("code", "error", "message"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            cleaned = " ".join(ch for ch in value if ch.isprintable()).strip()
+            if cleaned:
+                parts.append(cleaned[:120])
+    return "; ".join(parts)[:240]
 
 
 def post_form_json(url, fields):
