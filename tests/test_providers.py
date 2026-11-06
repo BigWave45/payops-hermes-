@@ -164,3 +164,12 @@ def test_flutterwave_rejects_non_success_and_bad_response(monkeypatch):
         assert "unsuccessful" in str(exc)
     else:
         raise AssertionError("failed API status should be rejected")
+
+
+def test_legacy_flutterwave_v3_host_is_not_allowed_by_static_key_client():
+    try:
+        get_json("https://api.flutterwave.com", "v3/transactions", "legacy-key")
+    except ProviderError as exc:
+        assert "not permitted" in str(exc)
+    else:
+        raise AssertionError("legacy Flutterwave v3 host must not be allowed")
