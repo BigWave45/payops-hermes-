@@ -13,7 +13,7 @@ The plugin does not initiate charges, transfers, refunds, reversals, payouts, or
 
 ## Requirements
 
-- Hermes Agent with native plugin support.
+- Hermes Agent 0.23.0 or newer (0.23.0 is the version currently used for compatibility testing).
 - Python 3.10 or newer.
 - Provider API credentials. Use test credentials while developing.
 
@@ -56,6 +56,8 @@ Run tests with:
 ```bash
 python -m pytest -q
 ```
+
+The native plugin manifest does not enforce a Hermes version floor. When submitting to the Hermes catalogue, the catalogue entry should declare `requires_hermes: ">=0.23.0"` so older clients are not offered an incompatible plugin.
 
 Validate with the Hermes CLI:
 
