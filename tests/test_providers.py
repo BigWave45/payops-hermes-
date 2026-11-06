@@ -94,6 +94,31 @@ def test_flutterwave_uses_pagination_metadata_and_minor_unit_conversion(monkeypa
     assert all("size" not in params for _, params in transaction_calls)
 
 
+def test_flutterwave_discloses_page_cap(monkeypatch):
+    def fake_get_json(base_url, path, token, params):
+        if path == "transactions":
+            return {
+                "status": "success",
+                "meta": {"page_info": {"total_pages": 3}},
+                "data": [{
+                    "id": params["page"],
+                    "tx_ref": f"ref_{params['status']}_{params['page']}",
+                    "amount": "1.00",
+                    "currency": "NGN",
+                    "status": params["status"],
+                }],
+            }
+        raise AssertionError(path)
+
+    monkeypatch.setattr(flutterwave_module, "get_json", fake_get_json)
+    adapter = flutterwave_module.Flutterwave("test-key")
+    records = adapter.transactions("2026-11-01", "2026-11-06", 1)
+
+    assert len(records) == 2
+    assert len(adapter.warnings) == 2
+    assert all("fetched 1 of 3 pages" in warning for warning in adapter.warnings)
+
+
 def test_http_client_rejects_unapproved_hosts():
     try:
         get_json("https://example.com", "/anything", "secret")
