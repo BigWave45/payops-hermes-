@@ -44,9 +44,12 @@ Provider API calls are HTTPS GET requests only. Responses are capped at 5 MB and
 - Duplicate references are detected within a provider only.
 - Transaction totals and settlement totals are reported separately. They are not treated as directly equivalent because settlement timing can lag.
 - Flutterwave v3 transaction listing uses successful and failed status filters; pending or in-progress transactions may not be returned.
+- Both adapters follow provider pagination metadata. The `max_pages` limit is a deliberate safety bound; if more pages exist, the tool returns an explicit `provider_warnings` entry instead of silently presenting the result as complete.
 - This report is not a substitute for bank-statement reconciliation or a merchant order ledger.
 
 ## Development
+
+Provider adapter tests use mocked API responses; they verify normalization and pagination behavior but do not replace live test-key verification.
 
 Run tests with:
 
