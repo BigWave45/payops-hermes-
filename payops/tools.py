@@ -45,11 +45,7 @@ def _collect(args):
                     continue
                 adapter = Paystack(token)
             else:
-                secret_key = _get_secret("FLUTTERWAVE_SECRET_KEY")
-                if not secret_key:
-                    errors.append({"provider": name, "error": "Secret key is not configured in Hermes secret storage"})
-                    continue
-                adapter = Flutterwave(secret_key)
+                adapter = Flutterwave()
             transactions.extend(adapter.transactions(start, end, pages))
             warning_count = len(getattr(adapter, "warnings", []))
             warnings.extend(f"{name}: {warning}" for warning in adapter.warnings)
