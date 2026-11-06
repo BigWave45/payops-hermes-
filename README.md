@@ -40,7 +40,7 @@ Provider API calls are HTTPS GET requests only. Responses are capped at 5 MB and
 ## Reconciliation semantics and limitations
 
 - Paystack transaction amounts are already expressed in minor units.
-- Flutterwave transaction and settlement amounts are converted from major units to minor units.
+- Flutterwave transaction and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
 - Duplicate references are detected within a provider only.
 - Transaction totals and settlement totals are reported separately. They are not treated as directly equivalent because settlement timing can lag.
 - Flutterwave v3 transaction listing uses successful and failed status filters; pending or in-progress transactions may not be returned.
