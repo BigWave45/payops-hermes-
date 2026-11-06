@@ -47,6 +47,18 @@ Provider API calls are HTTPS GET requests only. Provider data calls are read-onl
 - Both adapters follow provider pagination metadata. The `max_pages` limit is a deliberate safety bound; if more pages exist, the tool returns an explicit `provider_warnings` entry instead of silently presenting the result as complete.
 - This report is not a substitute for bank-statement reconciliation or a merchant order ledger.
 
+## Roadmap
+
+The following are planned extensions, not features available in the current MVP. They are listed to make the intended direction explicit; inclusion here does not imply an implementation commitment or release date.
+
+- **Merchant-reference matching:** compare provider transactions against a shared merchant order or payment reference when that reference is available and reliable.
+- **Cross-provider matching:** identify likely corresponding Paystack and Flutterwave payments using shared merchant references. PayOps will not infer that two payments are duplicates merely because their amounts or timestamps are similar.
+- **CSV exports:** provide downloadable, machine-readable transaction and reconciliation reports.
+- **Scheduled reconciliation:** support recurring checks through Hermes scheduling or another supported Hermes execution mechanism, with new exceptions surfaced to the operator.
+- **Historical reports:** compare reconciliation results over time. This may require an optional persistence layer; the current plugin does not maintain a database or store report history.
+
+The roadmap is deliberately focused on improving reconciliation quality and operational visibility while preserving the current read-only boundary. Automated refunds, payouts, transfers, and other payment mutations are outside the current product scope.
+
 ## Development
 
 Provider adapter tests use mocked API responses; they verify normalization and pagination behavior but do not replace live test-key verification.
