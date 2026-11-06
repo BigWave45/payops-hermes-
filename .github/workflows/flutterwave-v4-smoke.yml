@@ -7,6 +7,7 @@ on:
       - feat/flutterwave-v4-hermes-oauth
     paths:
       - .github/workflows/flutterwave-v4-smoke.yml
+      - payops/providers/flutterwave.py
 
 permissions:
   contents: read
