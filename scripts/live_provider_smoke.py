@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from payops.providers import Flutterwave, Paystack
+from payops.providers import paystack as paystack_module
 from payops.providers.http import ProviderError
 
 
