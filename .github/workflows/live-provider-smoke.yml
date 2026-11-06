@@ -12,6 +12,10 @@ on:
           - paystack
           - flutterwave
         default: both
+      paystack_reference:
+        description: Optional Paystack test transaction reference to verify
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -33,5 +37,6 @@ jobs:
         env:
           PAYOPS_PROVIDERS: ${{ inputs.providers }}
           PAYSTACK_TEST_SECRET_KEY: ${{ secrets.PAYSTACK_TEST_SECRET_KEY }}
+          PAYSTACK_TEST_REFERENCE: ${{ inputs.paystack_reference }}
           FLUTTERWAVE_TEST_SECRET_KEY: ${{ secrets.FLUTTERWAVE_TEST_SECRET_KEY }}
         run: python scripts/live_provider_smoke.py
