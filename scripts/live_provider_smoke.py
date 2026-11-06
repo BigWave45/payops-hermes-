@@ -8,13 +8,12 @@ import os
 import sys
 
 # Direct execution sets sys.path[0] to scripts/, not the repository root.
-# Add the project root so "python scripts/live_provider_smoke.py" works
-# without requiring an editable install or a PYTHONPATH override.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from payops.providers import Flutterwave, Paystack
+from payops.providers.http import ProviderError
 
 
 PROVIDERS = {
@@ -56,20 +55,29 @@ def main():
             print(f"{name}: missing required Actions secret {secret_name}", file=sys.stderr)
             failed = True
             continue
+        stage = "initialization"
         try:
             adapter = adapter_type(token)
+            stage = "transaction listing"
             transactions = adapter.transactions(from_date, to_date, max_pages=2)
+            stage = "settlement listing"
             settlements = adapter.settlements(from_date, to_date, max_pages=2)
+            stage = "normalized record validation"
             validate_records(name, transactions, settlements)
             print(
-                f"{name}: authenticated; transactions={len(transactions)}; "
+                f"{name}: success; transactions={len(transactions)}; "
                 f"settlements={len(settlements)}; pagination_warnings={len(adapter.warnings)}"
             )
             for warning in adapter.warnings:
                 print(f"{name}: warning: {warning}")
+        except ProviderError as exc:
+            # ProviderError messages are deliberately sanitized by the HTTP client
+            # and adapter; they contain status/category only, never response bodies.
+            print(f"{name}: {stage} failed ({exc})", file=sys.stderr)
+            failed = True
         except Exception as exc:
-            # Do not print exception messages from arbitrary third-party code.
-            print(f"{name}: live smoke test failed ({type(exc).__name__})", file=sys.stderr)
+            # Do not print arbitrary exception messages from third-party code.
+            print(f"{name}: {stage} failed ({type(exc).__name__})", file=sys.stderr)
             failed = True
 
     return 1 if failed else 0
