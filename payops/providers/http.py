@@ -77,22 +77,32 @@ def get_json(base_url, path, token, params=None, headers=None):
 
 
 def _safe_error_detail(exc):
-    """Expose only short provider error codes/messages, never raw response bodies."""
+    """Extract short, non-sensitive error text from common provider error shapes."""
     try:
         payload = json.loads(exc.read(16 * 1024).decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return ""
-    if not isinstance(payload, dict):
-        return ""
-    parts = []
-    for key in ("code", "error", "message"):
-        value = payload.get(key)
-        if isinstance(value, str):
-            cleaned = " ".join(ch for ch in value if ch.isprintable()).strip()
-            if cleaned:
-                parts.append(cleaned[:120])
-    return "; ".join(parts)[:240]
 
+    allowed = {"code", "error", "error_description", "message", "detail", "title"}
+    parts = []
+
+    def visit(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key.lower() in allowed and isinstance(item, str):
+                    cleaned = " ".join(ch for ch in item if ch.isprintable()).strip()
+                    if cleaned:
+                        parts.append(cleaned[:120])
+                elif isinstance(item, (dict, list)):
+                    visit(item)
+        elif isinstance(value, list):
+            for item in value[:5]:
+                visit(item)
+
+    visit(payload)
+    # Preserve order while avoiding repeated provider messages.
+    unique = list(dict.fromkeys(parts))
+    return "; ".join(unique)[:240]
 
 def post_form_json(url, fields):
     parsed = _validate_url(url)
