@@ -4,44 +4,90 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-ALLOWED_HOSTS = {"api.paystack.co", "api.flutterwave.com"}
+ALLOWED_HOSTS = {
+    "api.paystack.co",
+    "api.flutterwave.com",
+    "idp.flutterwave.com",
+    "developersandbox-api.flutterwave.com",
+}
+
 
 class ProviderError(RuntimeError):
     pass
 
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        # Never forward a bearer token to a redirect target.
+        # Never forward credentials to a redirect target.
         return None
 
-_OPENER = build_opener(_NoRedirect)
 
-def get_json(base_url, path, token, params=None):
-    parsed = urlsplit(base_url)
-    if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS or parsed.port not in (None, 443):
+_OPENER = build_opener(_NoRedirect)
+_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+
+
+def _validate_url(url):
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in ALLOWED_HOSTS
+        or parsed.port not in (None, 443)
+        or parsed.username
+        or parsed.password
+    ):
         raise ProviderError("Provider endpoint is not permitted")
-    if parsed.username or parsed.password:
-        raise ProviderError("Provider endpoint is not permitted")
-    url = base_url.rstrip("/") + "/" + path.lstrip("/")
-    if params:
-        url += "?" + urlencode(params)
-    request = Request(url, headers={
-        "Authorization": "Bearer " + token,
-        "Accept": "application/json",
-        "User-Agent": "payops-hermes/0.1",
-    }, method="GET")
+    return parsed
+
+
+def _decode_response(response):
+    raw = response.read(_MAX_RESPONSE_BYTES + 1)
+    if len(raw) > _MAX_RESPONSE_BYTES:
+        raise ProviderError("Provider response exceeded 5 MB limit")
     try:
-        with _OPENER.open(request, timeout=20) as response:
-            raw = response.read(5 * 1024 * 1024 + 1)
-            if len(raw) > 5 * 1024 * 1024:
-                raise ProviderError("Provider response exceeded 5 MB limit")
-            data = json.loads(raw.decode("utf-8"))
-    except HTTPError as exc:
-        raise ProviderError("Provider returned HTTP %s" % exc.code) from None
-    except (URLError, TimeoutError, OSError):
-        raise ProviderError("Could not reach payment provider") from None
+        data = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise ProviderError("Provider returned invalid JSON") from None
     if not isinstance(data, dict):
         raise ProviderError("Unexpected provider response shape")
     return data
+
+
+def get_json(base_url, path, token, params=None, headers=None):
+    _validate_url(base_url)
+    url = base_url.rstrip("/") + "/" + path.lstrip("/")
+    if params:
+        url += "?" + urlencode(params)
+    request_headers = {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/json",
+        "User-Agent": "payops-hermes/0.1",
+    }
+    if headers:
+        request_headers.update(headers)
+    request = Request(url, headers=request_headers, method="GET")
+    try:
+        with _OPENER.open(request, timeout=20) as response:
+            return _decode_response(response)
+    except HTTPError as exc:
+        raise ProviderError("Provider returned HTTP %s" % exc.code) from None
+    except (URLError, TimeoutError, OSError):
+        raise ProviderError("Could not reach payment provider") from None
+
+
+def post_form_json(url, fields):
+    parsed = _validate_url(url)
+    if parsed.hostname != "idp.flutterwave.com":
+        raise ProviderError("Provider endpoint is not permitted")
+    body = urlencode(fields).encode("utf-8")
+    request = Request(url, data=body, headers={
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+        "User-Agent": "payops-hermes/0.1",
+    }, method="POST")
+    try:
+        with _OPENER.open(request, timeout=20) as response:
+            return _decode_response(response)
+    except HTTPError as exc:
+        raise ProviderError("Provider returned HTTP %s" % exc.code) from None
+    except (URLError, TimeoutError, OSError):
+        raise ProviderError("Could not reach payment provider") from None
