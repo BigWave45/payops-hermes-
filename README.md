@@ -67,7 +67,7 @@ Run tests with:
 python -m pytest -q
 ```
 
-The native plugin manifest does not enforce a Hermes version floor. When submitting to the Hermes catalogue, the catalogue entry should declare `requires_hermes: ">=0.23.0"` so older clients are not offered an incompatible plugin.
+The plugin manifest declares `requires_hermes: ">=0.23.0"`. The catalogue entry must declare the same floor and pin the exact reviewed commit.
 
 Validate with the Hermes CLI:
 
@@ -76,17 +76,25 @@ hermes plugins doctor payops/ --ci
 hermes plugins validate payops/ --install-deps
 ```
 
-## Security boundaries
+## Security boundaries and disclosures
 
-- Read-only provider data endpoints; no payment or transfer mutation calls.
-- HTTPS and explicit provider-host allowlist.
-- No shell execution, subprocesses, arbitrary URLs, or user-controlled request hosts.
-- Secrets are obtained from Hermes secret storage.
-- Provider error messages are bounded and do not include response bodies or request headers.
+- PayOps makes HTTPS requests to Paystack and Flutterwave to retrieve transaction and settlement data. Flutterwave authentication also requires an HTTPS OAuth token exchange.
+- Provider data requests use read-only endpoints. PayOps does not initiate charges, transfers, refunds, reversals, payouts, or other payment mutations.
+- Requests are restricted to an explicit provider-host allowlist, redirects are disabled, responses are capped at 5 MB, and requests time out after 20 seconds.
+- API credentials are read through Hermes secret storage. PayOps does not read project `.env` files or other credential stores.
+- Current Flutterwave implementation exchanges the configured client ID and client secret for a short-lived access token itself and keeps that token in process memory while making API requests. It does not persist the access token.
+- PayOps does not execute shell commands, spawn subprocesses, run background jobs, or send telemetry.
+- Provider error messages are bounded; response bodies and request headers are not included in raised errors.
+
+## Catalogue readiness
+
+PayOps is not ready for Hermes catalogue submission yet. The current Flutterwave v4 integration performs its own OAuth 2.0 `client_credentials` token exchange. Hermes' current catalogue admission rule 11 requires OAuth tokens to be managed by Hermes and says plugins must not acquire or refresh them independently. Hermes currently documents an interactive PKCE OAuth client flow, which is not interchangeable with Flutterwave's machine-to-machine flow.
+
+A feature request has been opened with Hermes to add Hermes-managed `client_credentials` support: https://github.com/NousResearch/hermes-agent/issues/149975. Until Hermes provides a supported route or maintainers confirm an acceptable alternative, do not submit PayOps to the catalogue.
 
 ## Status
 
-Early MVP. Provider API response shapes and Hermes runtime compatibility must be verified against the target Hermes version before catalogue submission. Do not use production credentials until validation is complete.
+Early MVP. Automated tests, Hermes compatibility checks, and live provider smoke tests have passed. The latest live smoke test authenticated against both providers but returned zero transactions and zero settlements, so it confirms connectivity and authentication, not reconciliation against populated provider data. Do not use production credentials until validation is complete.
 
 ## License
 
