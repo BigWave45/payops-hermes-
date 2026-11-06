@@ -35,6 +35,31 @@ Hermes obtains the token from Flutterwave, stores it in the profile, refreshes i
 
 Flutterwave v4 test mode uses `https://developersandbox-api.flutterwave.com`. Production uses `https://f4bexperience.flutterwave.com`. The adapter defaults to sandbox. Production selection must be an explicit code/configuration change; do not point test credentials at production.
 
+## Install and use
+
+PayOps runs inside Hermes Agent; it is not a standalone dashboard or hosted payment service. Install it from this repository using a Hermes build that includes the OAuth client-credentials feature:
+
+```bash
+hermes plugins install BigWave45/payops-hermes- --ref 215ea85cbea2918c37a895061dac8c502a0c04a7
+hermes plugins enable payops
+```
+
+During setup, provide the credentials for the provider accounts you want to inspect. Store them in Hermes' secret configuration, not in prompts or source files. For Flutterwave v4, add its OAuth client after installation:
+
+```bash
+hermes auth add payops:flutterwave
+```
+
+Then ask the Hermes agent to use the PayOps tools. For example:
+
+- "List my Flutterwave transactions from 1 October to 31 October 2026."
+- "Reconcile my Paystack transactions and settlements for last month."
+- "Compare transaction totals and settlement totals across Paystack and Flutterwave for this date range. Show exceptions."
+
+The agent calls `payops_list_transactions` for transaction inspection and `payops_reconcile` for transaction/settlement summaries and deterministic data-quality exceptions. The date range is required. Specify a provider when you do not want both configured providers queried.
+
+The current public implementation is a custom Git install, not yet a reviewed Hermes catalog listing. Its Flutterwave v4 path requires the Hermes OAuth feature proposed in [PR #150013](https://github.com/NousResearch/hermes-agent/pull/150013), so a standard upstream Hermes release cannot yet run that path without the feature.
+
 ## Tools
 
 Both tools accept:
@@ -86,9 +111,17 @@ For an automated sandbox test, add GitHub Actions repository secrets named `FLUT
 - Provider error messages are bounded; response bodies and request headers are not included in raised errors.
 - PayOps does not execute shell commands, spawn subprocesses, run background jobs, or send telemetry.
 
+## Hermes contribution
+
+PayOps exposed a missing capability in Hermes: plugins could use interactive OAuth authorization-code/PKCE, but could not declare machine-to-machine OAuth 2.0 `client_credentials` while keeping token handling inside Hermes. We implemented that reusable capability in our Hermes fork and submitted [PR #150013](https://github.com/NousResearch/hermes-agent/pull/150013), linked to [issue #149975](https://github.com/NousResearch/hermes-agent/issues/149975).
+
+The focused Hermes OAuth tests pass, and PayOps provides a separate provider integration against Flutterwave v4 sandbox. This is a concrete plugin-side validation of the feature, not evidence of upstream acceptance. The PR remains a draft pending maintainer review.
+
 ## Status
 
-Flutterwave v4 OAuth integration is under validation on a feature branch. Do not treat this branch as a catalogue-ready release until the Hermes feature is merged upstream or an accepted release containing it is available, and the real Flutterwave sandbox test has passed.
+The Flutterwave v4 sandbox OAuth and PayOps transaction-list handler smoke test passed. The sandbox returned zero transactions for the queried period, so the test proves authentication and read access, not reconciliation against populated account data. Flutterwave v4 sandbox does not provide settlement records for live transactions; settlement reconciliation still requires an approved live account with real records. Do not use production credentials merely to make a test pass.
+
+Do not treat the current feature branch as a generally installable upstream-catalogue release until Hermes merges/releases the OAuth capability or the user deliberately runs a Hermes build containing our forked implementation.
 
 ## License
 
