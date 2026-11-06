@@ -40,43 +40,58 @@ def test_paystack_amounts_are_already_minor_units(monkeypatch):
     ]
 
 
-def test_flutterwave_major_units_convert_to_minor_units(monkeypatch):
+def test_flutterwave_uses_pagination_metadata_and_minor_unit_conversion(monkeypatch):
     calls = []
 
     def fake_get_json(base_url, path, token, params):
         calls.append((path, dict(params)))
         if path == "transactions":
-            return {"status": "success", "data": [{
-                "id": 23,
-                "tx_ref": "fw_ref_23",
-                "amount": "123.45",
-                "currency": "NGN",
-                "status": params["status"],
-                "created_at": "2026-11-05T12:00:00Z",
-            }]}
+            status = params["status"]
+            page = int(params["page"])
+            total_pages = 2 if status == "successful" else 1
+            amount = "123.45" if page == 1 else "1.00"
+            return {
+                "status": "success",
+                "meta": {"page_info": {"total_pages": total_pages, "current_page": page}},
+                "data": [{
+                    "id": page,
+                    "tx_ref": f"fw_{status}_{page}",
+                    "amount": amount,
+                    "currency": "NGN",
+                    "status": status,
+                    "created_at": "2026-11-05T12:00:00Z",
+                }],
+            }
         if path == "settlements":
-            return {"status": "success", "data": [{
-                "id": "settlement-4",
-                "amount": "120.00",
-                "currency": "NGN",
-                "status": "completed",
-                "created_at": "2026-11-06T00:00:00Z",
-            }]}
+            return {
+                "status": "success",
+                "meta": {"page_info": {"total_pages": 1, "current_page": 1}},
+                "data": [{
+                    "id": "settlement-4",
+                    "amount": "120.00",
+                    "currency": "NGN",
+                    "status": "completed",
+                    "created_at": "2026-11-06T00:00:00Z",
+                }],
+            }
         raise AssertionError(path)
 
     monkeypatch.setattr(flutterwave_module, "get_json", fake_get_json)
     adapter = flutterwave_module.Flutterwave("test-key")
 
-    transactions = adapter.transactions("2026-11-01", "2026-11-06", 2)
-    settlements = adapter.settlements("2026-11-01", "2026-11-06", 2)
+    transactions = adapter.transactions("2026-11-01", "2026-11-06", 3)
+    settlements = adapter.settlements("2026-11-01", "2026-11-06", 3)
 
-    assert [item.amount_minor for item in transactions] == [12345, 12345]
-    assert [item.status for item in transactions] == ["successful", "failed"]
+    assert [item.amount_minor for item in transactions] == [12345, 100, 12345]
+    assert [item.status for item in transactions] == ["successful", "successful", "failed"]
     assert [item.amount_minor for item in settlements] == [12000]
     assert [item.provider for item in settlements] == ["flutterwave"]
-    assert [params["status"] for path, params in calls if path == "transactions"] == [
-        "successful", "failed"
+    transaction_calls = [(path, params) for path, params in calls if path == "transactions"]
+    assert [params["status"] for _, params in transaction_calls] == [
+        "successful", "successful", "failed"
     ]
+    assert [params["page"] for _, params in transaction_calls] == [1, 2, 1]
+    assert all("size" not in params for _, params in transaction_calls)
 
 
 def test_http_client_rejects_unapproved_hosts():
