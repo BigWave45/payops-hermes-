@@ -65,7 +65,7 @@ jobs:
         env:
           HERMES_HOME: ${{ runner.temp }}/payops-hermes-home
         run: |
-          PYTHONPATH="$HERMES_HOME/plugins/payops" uv run python - <<'PY'
+          PYTHONPATH="$HERMES_HOME/plugins" uv run python - <<'PY'
           from datetime import datetime, timedelta, timezone
           from payops.providers import Flutterwave
 
