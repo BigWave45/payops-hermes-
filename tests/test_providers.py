@@ -32,92 +32,127 @@ def test_paystack_amounts_are_already_minor_units(monkeypatch):
     ]
 
 
-def test_flutterwave_v3_secret_key_transactions_and_settlements(monkeypatch):
+def test_flutterwave_v4_oauth_transactions_and_settlements(monkeypatch):
     api_calls = []
 
-    def fake_get(base_url, path, token, params):
-        api_calls.append((base_url, path, token, dict(params)))
-        if path == "v3/transactions":
-            status = params["status"]
-            page = params["page"]
-            total_pages = 2 if status == "successful" else 1
-            return {
+    class Response:
+        status = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return self.payload
+
+    def fake_request(provider, method, url, *, headers, timeout):
+        from urllib.parse import urlsplit, parse_qs
+        parsed = urlsplit(url)
+        params = parse_qs(parsed.query)
+        api_calls.append((provider, method, parsed.netloc, parsed.path, params, headers, timeout))
+        page = int(params.get("page", ["1"])[0])
+        if parsed.path == "/charges":
+            status = params["status"][0]
+            return Response({
                 "status": "success",
-                "meta": {"page_info": {"total_pages": total_pages, "current_page": page}},
+                "meta": {"page_info": {"total_pages": 2 if status == "succeeded" else 1}},
                 "data": [{
-                    "id": 100 + page,
-                    "tx_ref": f"fw_{status}_{page}",
-                    "charged_amount": "123.45" if page == 1 else "1.00",
+                    "id": f"chg_{status}_{page}",
+                    "reference": f"fw_{status}_{page}",
+                    "amount": "123.45" if page == 1 else "1.00",
                     "currency": "NGN",
                     "status": status,
-                    "created_at": "2026-11-05T12:00:00Z",
+                    "created_datetime": "2026-11-05T12:00:00Z",
                 }],
-            }
-        if path == "v3/settlements":
-            return {
+            })
+        if parsed.path == "/settlements":
+            return Response({
                 "status": "success",
-                "meta": {"page_info": {"total_pages": 1, "current_page": 1}},
+                "meta": {"page_info": {"total_pages": 1}},
                 "data": [{
-                    "id": 9, "net_amount": "120.00",
+                    "id": "stm_9", "net_amount": "120.00",
                     "gross_amount": "125.00", "currency": "NGN",
-                    "status": "completed", "processed_date": "2026-11-06",
+                    "status": "completed", "due_datetime": "2026-11-06T00:00:00Z",
+                    "created_datetime": "2026-11-05T00:00:00Z",
                 }],
-            }
-        raise AssertionError(path)
+            })
+        raise AssertionError(parsed.path)
 
-    monkeypatch.setattr(flutterwave_module, "get_json", fake_get)
-    adapter = flutterwave_module.Flutterwave("test-secret-key")
+    import hermes_cli.plugin_provider_requests as requests_module
+    monkeypatch.setattr(requests_module, "credentialed_provider_request", fake_request)
+    adapter = flutterwave_module.Flutterwave()
     transactions = adapter.transactions("2026-11-01", "2026-11-06", 3)
     settlements = adapter.settlements("2026-11-01", "2026-11-06", 3)
 
-    assert [item.amount_minor for item in transactions] == [12345, 100, 12345]
-    assert [item.status for item in transactions] == ["successful", "successful", "failed"]
+    assert [item.amount_minor for item in transactions] == [12345, 100, 12345, 12345, 12345]
+    assert [item.status for item in transactions] == [
+        "succeeded", "succeeded", "pending", "failed", "voided"
+    ]
     assert [item.reference for item in transactions] == [
-        "fw_successful_1", "fw_successful_2", "fw_failed_1"
+        "fw_succeeded_1", "fw_succeeded_2", "fw_pending_1", "fw_failed_1", "fw_voided_1"
     ]
     assert [item.amount_minor for item in settlements] == [12000]
-    assert [item.settlement_id for item in settlements] == ["9"]
-    assert all(call[0] == "https://api.flutterwave.com" for call in api_calls)
-    assert all(call[2] == "test-secret-key" for call in api_calls)
-    assert [call[3]["status"] for call in api_calls if call[1] == "v3/transactions"] == [
-        "successful", "successful", "failed"
+    assert [item.settlement_id for item in settlements] == ["stm_9"]
+    assert all(call[0] == "flutterwave" and call[1] == "GET" for call in api_calls)
+    assert all(call[2] == "developersandbox-api.flutterwave.com" for call in api_calls)
+    assert all(call[5]["Accept"] == "application/json" for call in api_calls)
+    assert [call[4]["status"][0] for call in api_calls if call[3] == "/charges"] == [
+        "succeeded", "succeeded", "pending", "failed", "voided"
     ]
-    assert any("pending transactions are not included" in warning for warning in adapter.warnings)
+    assert all("from" in call[4] and "to" in call[4] for call in api_calls)
 
 
-def test_flutterwave_v3_discloses_page_cap(monkeypatch):
-    def fake_get(base_url, path, token, params):
-        if path == "v3/transactions":
+def test_flutterwave_v4_discloses_page_cap(monkeypatch):
+    class Response:
+        status = 200
+
+        @staticmethod
+        def json():
             return {
                 "status": "success",
                 "meta": {"page_info": {"total_pages": 3}},
                 "data": [{
-                    "id": params["page"], "tx_ref": f"ref_{params['status']}_{params['page']}",
-                    "amount": "1.00", "currency": "NGN", "status": params["status"],
+                    "id": "chg_1", "reference": "ref_1", "amount": "1.00",
+                    "currency": "NGN", "status": "succeeded",
                 }],
             }
-        raise AssertionError(path)
 
-    monkeypatch.setattr(flutterwave_module, "get_json", fake_get)
-    adapter = flutterwave_module.Flutterwave("test-secret-key")
+    calls = []
+    def fake_request(provider, method, url, **kwargs):
+        calls.append(url)
+        return Response()
+
+    import hermes_cli.plugin_provider_requests as requests_module
+    monkeypatch.setattr(requests_module, "credentialed_provider_request", fake_request)
+    adapter = flutterwave_module.Flutterwave()
     records = adapter.transactions("2026-11-01", "2026-11-06", 1)
-    assert len(records) == 2
-    assert len([warning for warning in adapter.warnings if "fetched 1 of 3 pages" in warning]) == 2
+    assert len(records) == 4
+    assert len([warning for warning in adapter.warnings if "fetched 1 of 3 pages" in warning]) == 4
 
 
-def test_flutterwave_requires_secret_key():
+def test_flutterwave_rejects_invalid_environment():
     try:
-        flutterwave_module.Flutterwave("")
+        flutterwave_module.Flutterwave("live")
     except ProviderError as exc:
-        assert "secret key is not configured" in str(exc)
+        assert "environment" in str(exc)
     else:
-        raise AssertionError("missing secret key should be rejected")
+        raise AssertionError("invalid environment should be rejected")
 
 
-def test_http_client_rejects_unapproved_hosts():
+def test_flutterwave_rejects_non_success_and_bad_response(monkeypatch):
+    class Response:
+        status = 200
+
+        @staticmethod
+        def json():
+            return {"status": "failed", "data": []}
+
+    import hermes_cli.plugin_provider_requests as requests_module
+    monkeypatch.setattr(requests_module, "credentialed_provider_request",
+                        lambda *args, **kwargs: Response())
+    adapter = flutterwave_module.Flutterwave()
     try:
-        get_json("https://example.com", "/anything", "secret")
+        adapter.transactions("2026-11-01", "2026-11-06", 1)
     except ProviderError as exc:
-        assert "not permitted" in str(exc)
+        assert "unsuccessful" in str(exc)
     else:
-        raise AssertionError("unapproved host should be rejected")
+        raise AssertionError("failed API status should be rejected")
