@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from payops.providers import Flutterwave, Paystack
+from payops.providers import Paystack
 from payops.providers import paystack as paystack_module
 from payops.providers.http import ProviderError
 
@@ -30,10 +30,8 @@ def validate_records(provider, transactions, settlements):
 
 
 def main():
-    requested = [p.strip() for p in os.environ.get("PAYOPS_PROVIDERS", "both").split(",")]
-    if requested == ["both"]:
-        requested = ["paystack", "flutterwave"]
-    if not requested or any(p not in ("paystack", "flutterwave") for p in requested) or len(set(requested)) != len(requested):
+    requested = [p.strip() for p in os.environ.get("PAYOPS_PROVIDERS", "paystack").split(",")]
+    if not requested or any(p != "paystack" for p in requested) or len(set(requested)) != len(requested):
         print("Invalid PAYOPS_PROVIDERS selection.", file=sys.stderr)
         return 2
 
@@ -56,10 +54,7 @@ def main():
                     raise ProviderError("missing required Actions secret PAYSTACK_TEST_SECRET_KEY")
                 adapter = Paystack(token)
             else:
-                secret_key = os.environ.get("FLUTTERWAVE_TEST_SECRET_KEY")
-                if not secret_key:
-                    raise ProviderError("missing required Actions secret FLUTTERWAVE_TEST_SECRET_KEY")
-                adapter = Flutterwave(secret_key)
+                raise ProviderError("Flutterwave v4 smoke tests must run through the installed Hermes plugin so Hermes can attach its OAuth token")
 
             if name == "paystack" and paystack_reference:
                 stage = "reference verification"
