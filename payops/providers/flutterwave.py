@@ -39,13 +39,23 @@ class Flutterwave:
             detail = ""
             try:
                 error_payload = response.json()
-                if isinstance(error_payload, dict):
-                    parts = []
-                    for key in ("code", "error", "message", "detail"):
-                        value = error_payload.get(key)
-                        if isinstance(value, str) and value.strip():
-                            parts.append(" ".join(value.split())[:120])
-                    detail = "; ".join(dict.fromkeys(parts))[:240]
+                parts = []
+
+                def collect_error_text(value):
+                    if isinstance(value, dict):
+                        for key, item in value.items():
+                            if key.lower() in {"code", "error", "error_description", "message", "detail", "title"} and isinstance(item, str):
+                                cleaned = " ".join(item.split())
+                                if cleaned:
+                                    parts.append(cleaned[:120])
+                            elif isinstance(item, (dict, list)):
+                                collect_error_text(item)
+                    elif isinstance(value, list):
+                        for item in value[:5]:
+                            collect_error_text(item)
+
+                collect_error_text(error_payload)
+                detail = "; ".join(dict.fromkeys(parts))[:240]
             except (ValueError, TypeError):
                 pass
             suffix = ": " + detail if detail else ""
