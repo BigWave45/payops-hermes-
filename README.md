@@ -23,7 +23,6 @@ Configure these secrets in Hermes secret storage:
 
 - `PAYSTACK_SECRET_KEY`
 - `FLUTTERWAVE_SECRET_KEY`
-- `FLUTTERWAVE_SECRET_KEY`
 
 Credentials are read through Hermes `agent.secret_scope.get_secret`. Flutterwave v3 uses a static secret API key read from Hermes secret storage. PayOps does not perform OAuth token acquisition or refresh. The plugin does not read a project `.env` file or print credentials.
 
@@ -36,16 +35,15 @@ Both tools accept:
 - `providers`: optional list containing `paystack`, `flutterwave`, or both. Defaults to both.
 - `max_pages`: optional page cap from 1 to 20; defaults to 5.
 
-Provider API calls are HTTPS GET requests only,  Provider data calls are read-only. Responses are capped at 5 MB and requests time out after 20 seconds.
+Provider API calls are HTTPS GET requests only. Provider data calls are read-only. Responses are capped at 5 MB and requests time out after 20 seconds.
 
 ## Reconciliation semantics and limitations
 
 - Paystack transaction amounts are already expressed in minor units.
-- Flutterwave v3 charge amounts and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
+- Flutterwave v3 transaction amounts and settlement amounts are converted from major units to minor units using currency-specific precision (including zero- and three-decimal currencies).
 - Duplicate references are detected within a provider only.
 - Transaction totals and settlement totals are reported separately. They are not treated as directly equivalent because settlement timing can lag.
-- Flutterwave v3 collected payments are retrieved from the read-only charges collection. The adapter requests succeeded, pending, failed, and voided statuses separately.
-- Flutterwave v3 sandbox transactions are test data. Settlement records are only available for eligible live/production transactions, so an empty sandbox settlement result is expected.
+- Flutterwave v3 transactions are retrieved from the read-only transaction-list endpoint. The adapter requests successful and failed statuses. Pending transactions are not included by this endpoint.
 - Both adapters follow provider pagination metadata. The `max_pages` limit is a deliberate safety bound; if more pages exist, the tool returns an explicit `provider_warnings` entry instead of silently presenting the result as complete.
 - This report is not a substitute for bank-statement reconciliation or a merchant order ledger.
 
@@ -56,8 +54,7 @@ Provider adapter tests use mocked API responses; they verify normalization and p
 For live, read-only provider verification, add these GitHub Actions repository secrets:
 
 - `PAYSTACK_TEST_SECRET_KEY`
-- `FLUTTERWAVE_SECRET_KEY`
-- `FLUTTERWAVE_SECRET_KEY`
+- `FLUTTERWAVE_TEST_SECRET_KEY`
 
 Then run **Actions → Live provider smoke test → Run workflow** and select the provider(s) to check. The workflow reads a 14-day window, caps each endpoint at two pages, and prints only record counts and pagination warnings. It does not print transaction details or credentials. Do not add production credentials.
 
@@ -78,11 +75,11 @@ hermes plugins validate payops/ --install-deps
 
 ## Security boundaries and disclosures
 
-- PayOps makes HTTPS requests to Paystack and Flutterwave to retrieve transaction and settlement data. Flutterwave authentication also requires an HTTPS OAuth token exchange.
+- PayOps makes HTTPS requests to Paystack and Flutterwave to retrieve transaction and settlement data. Flutterwave uses its v3 API with a static secret key supplied through Hermes secret storage.
 - Provider data requests use read-only endpoints. PayOps does not initiate charges, transfers, refunds, reversals, payouts, or other payment mutations.
 - Requests are restricted to an explicit provider-host allowlist, redirects are disabled, responses are capped at 5 MB, and requests time out after 20 seconds.
 - API credentials are read through Hermes secret storage. PayOps does not read project `.env` files or other credential stores.
-- Current Flutterwave implementation exchanges the configured client ID and client secret for a short-lived access token itself and keeps that token in process memory while making API requests. It does not persist the access token.
+- Flutterwave API requests use the configured v3 secret key directly. No OAuth access token is acquired or stored.
 - PayOps does not execute shell commands, spawn subprocesses, run background jobs, or send telemetry.
 - Provider error messages are bounded; response bodies and request headers are not included in raised errors.
 
