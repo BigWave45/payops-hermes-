@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'feat/flutterwave-v4-hermes-oauth']
+    branches: [main, 'feat/flutterwave-v4-hermes-oauth', 'release/catalog-paystack']
   pull_request:
     branches: [main]
 
