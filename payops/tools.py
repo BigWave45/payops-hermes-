@@ -1,13 +1,12 @@
-"""Hermes tool handlers."""
+"""Hermes tool handlers for the catalog-compatible Paystack release."""
 import json
 from datetime import date
 
-from .providers import Paystack, Flutterwave
+from .providers import Paystack
 from .reconcile import build_report
 
 
 def _get_secret(name):
-    # Lazy import keeps pure logic importable outside a Hermes installation.
     from agent.secret_scope import get_secret
     return get_secret(name)
 
@@ -22,45 +21,36 @@ def _validate(args):
         raise ValueError("from_date and to_date must be valid YYYY-MM-DD dates") from None
     if end < start:
         raise ValueError("to_date must be on or after from_date")
-    providers = args.get("providers") or ["paystack", "flutterwave"]
-    if not isinstance(providers, list) or not providers or any(p not in ("paystack", "flutterwave") for p in providers):
-        raise ValueError("providers must contain paystack and/or flutterwave")
+    providers = args.get("providers") or ["paystack"]
+    if not isinstance(providers, list) or not providers or any(p != "paystack" for p in providers):
+        raise ValueError("this catalog release supports the paystack provider only")
     if len(set(providers)) != len(providers):
         raise ValueError("providers must not contain duplicates")
     pages = args.get("max_pages", 5)
     if isinstance(pages, bool) or not isinstance(pages, int) or not 1 <= pages <= 20:
         raise ValueError("max_pages must be an integer between 1 and 20")
-    return start.isoformat(), end.isoformat(), providers, pages
+    return start.isoformat(), end.isoformat(), pages
 
 
-def _collect(args, flutterwave_environment="sandbox"):
-    start, end, providers, pages = _validate(args)
-    transactions, settlements, errors, warnings = [], [], [], []
-    for name in providers:
-        try:
-            if name == "paystack":
-                token = _get_secret("PAYSTACK_SECRET_KEY")
-                if not token:
-                    errors.append({"provider": name, "error": "API key is not configured in Hermes secret storage"})
-                    continue
-                adapter = Paystack(token)
-            else:
-                adapter = Flutterwave(environment=flutterwave_environment)
-            transactions.extend(adapter.transactions(start, end, pages))
-            warning_count = len(getattr(adapter, "warnings", []))
-            warnings.extend(f"{name}: {warning}" for warning in adapter.warnings)
-            settlements.extend(adapter.settlements(start, end, pages))
-            warnings.extend(f"{name}: {warning}" for warning in adapter.warnings[warning_count:])
-        except ImportError:
-            errors.append({"provider": name, "error": "Hermes secret storage is unavailable in this runtime"})
-        except Exception as exc:
-            errors.append({"provider": name, "error": str(exc)[:300]})
-    return transactions, settlements, errors, warnings
-
-
-def list_transactions(args: dict, flutterwave_environment="sandbox", **kwargs) -> str:
+def _collect(args):
+    start, end, pages = _validate(args)
     try:
-        transactions, _, errors, warnings = _collect(args, flutterwave_environment)
+        token = _get_secret("PAYSTACK_SECRET_KEY")
+        if not token:
+            return [], [], [{"provider": "paystack", "error": "API key is not configured in Hermes secret storage"}], []
+        adapter = Paystack(token)
+        transactions = adapter.transactions(start, end, pages)
+        settlements = adapter.settlements(start, end, pages)
+        return transactions, settlements, [], []
+    except ImportError:
+        return [], [], [{"provider": "paystack", "error": "Hermes secret storage is unavailable in this runtime"}], []
+    except Exception as exc:
+        return [], [], [{"provider": "paystack", "error": str(exc)[:300]}], []
+
+
+def list_transactions(args: dict, **kwargs) -> str:
+    try:
+        transactions, _, errors, warnings = _collect(args)
         return json.dumps({
             "transactions": [item.to_dict() for item in transactions],
             "count": len(transactions),
@@ -71,9 +61,9 @@ def list_transactions(args: dict, flutterwave_environment="sandbox", **kwargs) -
         return json.dumps({"error": str(exc)[:300]}, ensure_ascii=False)
 
 
-def reconcile(args: dict, flutterwave_environment="sandbox", **kwargs) -> str:
+def reconcile(args: dict, **kwargs) -> str:
     try:
-        transactions, settlements, errors, warnings = _collect(args, flutterwave_environment)
+        transactions, settlements, errors, warnings = _collect(args)
         report = build_report(transactions, settlements)
         report["provider_errors"] = errors
         report["provider_warnings"] = warnings

@@ -1,5 +1,4 @@
-"""Provider adapters."""
+"""Provider adapters shipped in the catalog-compatible release."""
 from .paystack import Paystack
-from .flutterwave import Flutterwave
 
-__all__ = ["Paystack", "Flutterwave"]
+__all__ = ["Paystack"]

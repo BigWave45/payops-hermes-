@@ -7,14 +7,8 @@ import payops
 
 
 class FakePluginContext:
-    def __init__(self, flutterwave_environment="sandbox"):
+    def __init__(self):
         self.tools = []
-        self.flutterwave_environment = flutterwave_environment
-
-    def get_config(self, key, default=None):
-        if key == "flutterwave_environment":
-            return self.flutterwave_environment
-        return default
 
     def register_tool(self, *, name, toolset, schema, handler):
         self.tools.append({
@@ -40,22 +34,3 @@ def test_registered_tools_match_manifest_and_schemas():
         assert tool["toolset"] == manifest["name"]
         assert tool["schema"]["name"] == tool["name"]
         assert callable(tool["handler"])
-
-
-def test_flutterwave_environment_setting_is_passed_to_both_handlers():
-    ctx = FakePluginContext("production")
-    payops.register(ctx)
-    assert all(
-        tool["handler"].keywords["flutterwave_environment"] == "production"
-        for tool in ctx.tools
-    )
-
-
-def test_invalid_flutterwave_environment_fails_plugin_registration():
-    ctx = FakePluginContext("live")
-    try:
-        payops.register(ctx)
-    except ValueError as exc:
-        assert "flutterwave_environment" in str(exc)
-    else:
-        raise AssertionError("invalid environment should fail registration")
