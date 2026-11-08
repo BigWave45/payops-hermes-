@@ -33,7 +33,7 @@ def _validate(args):
     return start.isoformat(), end.isoformat(), providers, pages
 
 
-def _collect(args):
+def _collect(args, flutterwave_environment="sandbox"):
     start, end, providers, pages = _validate(args)
     transactions, settlements, errors, warnings = [], [], [], []
     for name in providers:
@@ -45,7 +45,7 @@ def _collect(args):
                     continue
                 adapter = Paystack(token)
             else:
-                adapter = Flutterwave()
+                adapter = Flutterwave(environment=flutterwave_environment)
             transactions.extend(adapter.transactions(start, end, pages))
             warning_count = len(getattr(adapter, "warnings", []))
             warnings.extend(f"{name}: {warning}" for warning in adapter.warnings)
@@ -58,9 +58,9 @@ def _collect(args):
     return transactions, settlements, errors, warnings
 
 
-def list_transactions(args: dict, **kwargs) -> str:
+def list_transactions(args: dict, flutterwave_environment="sandbox", **kwargs) -> str:
     try:
-        transactions, _, errors, warnings = _collect(args)
+        transactions, _, errors, warnings = _collect(args, flutterwave_environment)
         return json.dumps({
             "transactions": [item.to_dict() for item in transactions],
             "count": len(transactions),
@@ -71,9 +71,9 @@ def list_transactions(args: dict, **kwargs) -> str:
         return json.dumps({"error": str(exc)[:300]}, ensure_ascii=False)
 
 
-def reconcile(args: dict, **kwargs) -> str:
+def reconcile(args: dict, flutterwave_environment="sandbox", **kwargs) -> str:
     try:
-        transactions, settlements, errors, warnings = _collect(args)
+        transactions, settlements, errors, warnings = _collect(args, flutterwave_environment)
         report = build_report(transactions, settlements)
         report["provider_errors"] = errors
         report["provider_warnings"] = warnings

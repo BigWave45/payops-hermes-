@@ -1,5 +1,5 @@
 name: payops
-version: "0.2.0"
+version: "0.2.1"
 description: Read-only Paystack and Flutterwave transaction inspection and reconciliation for Hermes agents.
 requires_hermes: ">=0.23.0"
 provides_tools:
@@ -18,6 +18,13 @@ requires_env:
     description: Flutterwave v4 OAuth client secret.
     url: https://developer.flutterwave.com/v4.0/docs/authentication
     secret: true
+config_schema:
+  flutterwave_environment:
+    type: str
+    default: sandbox
+    choices: [sandbox, production]
+    label: Flutterwave environment
+    description: Select the Flutterwave v4 API environment matching the OAuth credentials.
 oauth:
   - id: flutterwave
     grant_type: client_credentials
