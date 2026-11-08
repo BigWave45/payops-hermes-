@@ -14,8 +14,10 @@ The plugin does not initiate charges, transfers, refunds, reversals, payouts, or
 ## Requirements
 
 - Python 3.10 or newer.
-- Hermes Agent with the `client_credentials` plugin OAuth support from [this Hermes fork branch](https://github.com/BigWave45/hermes-agent/tree/feat/plugin-oauth-client-credentials). The feature is not yet part of the upstream Hermes release. The manifest's compatibility floor alone does not provide this capability.
+- Hermes Agent with plugin-managed OAuth 2.0 `client_credentials` support. This capability is not yet available in the current upstream Hermes release, so the Flutterwave path in this development branch is not usable on a standard upstream installation yet.
 - Provider credentials for the intended environment. Use test credentials during development.
+
+For standard upstream Hermes installations, use the Paystack-only catalog release until the required OAuth support is released upstream.
 
 ## Configure
 
@@ -37,14 +39,9 @@ Flutterwave v4 test mode uses `https://developersandbox-api.flutterwave.com`. Pr
 
 ## Install and use
 
-PayOps runs inside Hermes Agent; it is not a standalone dashboard or hosted payment service. Install it from this repository using a Hermes build that includes the OAuth client-credentials feature:
+PayOps runs inside Hermes Agent; it is not a standalone dashboard or hosted payment service. This dual-provider development branch is not the catalog installation path. On standard upstream Hermes installations, use the Paystack-only catalog release until Hermes releases the required OAuth capability.
 
-```bash
-hermes plugins install BigWave45/payops-hermes- --ref feat/flutterwave-v4-hermes-oauth
-hermes plugins enable payops
-```
-
-During setup, provide the credentials for the provider accounts you want to inspect. Store them in Hermes' secret configuration, not in prompts or source files. For Flutterwave v4, add its OAuth client after installation:
+When using a Hermes release that supports plugin-managed `client_credentials`, store provider credentials in Hermes secret storage, not in prompts or source files. For Flutterwave v4, add its OAuth client after installing the compatible PayOps release:
 
 ```bash
 hermes auth add payops:flutterwave
@@ -92,7 +89,7 @@ Run unit tests with:
 python -m pytest -q
 ```
 
-Validate the plugin using the Hermes fork build that contains client-credentials support:
+Validate the dual-provider development branch against a Hermes build that supports plugin-managed `client_credentials`:
 
 ```bash
 hermes plugins doctor payops/ --ci
@@ -126,7 +123,7 @@ The last stage is an ambition, not a current capability. PayOps currently perfor
 
 ## Hermes contribution
 
-PayOps exposed a missing capability in Hermes: plugins could use interactive OAuth authorization-code/PKCE, but could not declare machine-to-machine OAuth 2.0 `client_credentials` while keeping token handling inside Hermes. We implemented that reusable capability in our Hermes fork and submitted [PR #150013](https://github.com/NousResearch/hermes-agent/pull/150013), linked to [issue #149975](https://github.com/NousResearch/hermes-agent/issues/149975).
+PayOps exposed a missing capability in Hermes: plugins could use interactive OAuth authorization-code/PKCE, but could not declare machine-to-machine OAuth 2.0 `client_credentials` while keeping token handling inside Hermes. We submitted a proposal and implementation for that reusable capability in [Hermes PR #150013](https://github.com/NousResearch/hermes-agent/pull/150013), linked to [issue #149975](https://github.com/NousResearch/hermes-agent/issues/149975).
 
 The focused Hermes OAuth tests pass, and PayOps provides a separate provider integration against Flutterwave v4 sandbox. This is a concrete plugin-side validation of the feature, not evidence of upstream acceptance. The PR remains a draft pending maintainer review.
 
@@ -134,7 +131,7 @@ The focused Hermes OAuth tests pass, and PayOps provides a separate provider int
 
 The Flutterwave v4 sandbox OAuth and PayOps transaction-list handler smoke test passed. The sandbox returned zero transactions for the queried period, so the test proves authentication and read access, not reconciliation against populated account data. Flutterwave v4 sandbox does not provide settlement records for live transactions; settlement reconciliation still requires an approved live account with real records. Do not use production credentials merely to make a test pass.
 
-Do not treat the current feature branch as a generally installable upstream-catalogue release until Hermes merges/releases the OAuth capability or the user deliberately runs a Hermes build containing our forked implementation.
+Do not treat the current feature branch as a generally installable upstream-catalogue release until Hermes merges and releases the OAuth capability. The upstream-compatible catalog release currently supports Paystack only.
 
 ## License
 
